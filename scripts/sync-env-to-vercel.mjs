@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Lê o .env local e envia VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY
- * para o projeto Vercel vinculado. Assim você configura as variáveis sem abrir o painel.
+ * Lê o .env local e envia variáveis de build para o projeto Vercel vinculado:
+ * VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY, VITE_META_APP_ID.
  *
  * Uso: node scripts/sync-env-to-vercel.mjs
  * ou:  npm run vercel:env
  *
- * Requer: .env na raiz com as duas variáveis e projeto já linkado (vercel link).
+ * Requer: .env na raiz e projeto já linkado (vercel link).
  */
 
 import { readFileSync, existsSync } from "fs";
@@ -20,7 +20,7 @@ const envPath = path.join(root, ".env");
 
 if (!existsSync(envPath)) {
   console.error("Arquivo .env não encontrado na raiz do projeto.");
-  console.error("Crie um .env com VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY (veja .env.example).");
+  console.error("Crie um .env com VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY e VITE_META_APP_ID (veja .env.example).");
   process.exit(1);
 }
 
@@ -80,6 +80,17 @@ function runVercelEnvAdd(name, value, env = "production") {
   } catch (e) {
     console.error("  ✗ VITE_SUPABASE_PUBLISHABLE_KEY:", e.message);
     process.exit(1);
+  }
+  const metaAppId = (vars.VITE_META_APP_ID || "").trim();
+  if (metaAppId) {
+    try {
+      await runVercelEnvAdd("VITE_META_APP_ID", metaAppId);
+      console.log("  ✓ VITE_META_APP_ID");
+    } catch (e) {
+      console.error("  ✗ VITE_META_APP_ID:", e.message);
+    }
+  } else {
+    console.log("  ⊘ VITE_META_APP_ID não está no .env (opcional para conectar Instagram)");
   }
   console.log("\nVariáveis configuradas. Faça um novo deploy para aplicar:");
   console.log("  npx vercel --prod");

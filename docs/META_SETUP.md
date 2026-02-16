@@ -183,15 +183,44 @@ Para testar agora, use uma conta Facebook que seja **admin/dev/tester** do app P
 
 ---
 
+## 9. Deploy na Vercel (produção)
+
+No deploy, o **Vite** usa as variáveis de ambiente **no momento do build**. O `.env` da sua máquina **não** vai para a Vercel — é preciso definir as variáveis no projeto Vercel.
+
+**Opção A – Script (recomendado)**  
+Com o `.env` na raiz já preenchido (incluindo `VITE_META_APP_ID`), rode:
+
+```bash
+npm run vercel:env
+```
+
+Isso envia `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` e `VITE_META_APP_ID` para o projeto Vercel vinculado. Depois faça um novo deploy (no painel: **Deployments** → **…** → **Redeploy**, ou `npx vercel --prod`).
+
+**Opção B – Manual no painel**  
+1. Vercel Dashboard → seu projeto → **Settings** → **Environment Variables**.  
+2. Adicione `VITE_META_APP_ID` com o valor do seu App ID da Meta.  
+3. Marque **Production** (e Preview se quiser).  
+4. Salve e faça **Redeploy** do último deployment.
+
+**URIs de redirecionamento em produção**  
+No app Meta → **Facebook Login** → **Configurações** → **URIs de redirecionamento OAuth válidos**, adicione a URL do seu domínio, por exemplo:
+
+```
+https://seu-dominio.vercel.app/accounts/connect/callback
+```
+
+---
+
 ## Resumo rápido
 
 | Onde | O que fazer |
 |------|-------------|
 | Meta – Configurações do app | Copiar **ID do app** e **Chave secreta** |
-| Meta – Facebook Login → Configurações | Adicionar `http://localhost:5173/accounts/connect/callback` em URIs de redirecionamento |
+| Meta – Facebook Login → Configurações | Adicionar `http://localhost:5173/...` e `https://SEU_DOMINIO/.../accounts/connect/callback` |
 | Projeto – `.env` | `VITE_META_APP_ID=SEU_APP_ID` |
 | Terminal | `npx supabase secrets set META_APP_ID=... META_APP_SECRET=...` |
 | Terminal | `npx supabase functions deploy meta-connect` |
+| **Deploy Vercel** | `npm run vercel:env` ou adicionar `VITE_META_APP_ID` em Settings → Environment Variables e dar Redeploy |
 | Navegador | Login no app → Contas → Conectar Conta → autorizar no Facebook |
 
 Se em algum passo aparecer uma mensagem de erro (Meta, Supabase ou no app), copie a mensagem e a etapa em que parou para podermos ajustar o próximo passo.
