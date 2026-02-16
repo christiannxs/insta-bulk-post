@@ -45,8 +45,8 @@ async function bootstrap() {
   }
   if (missingEnv) {
     showBootstrapError(
-      "Variáveis de ambiente do Supabase não configuradas.",
-      "No painel da Vercel: Project Settings → Environment Variables → adicione VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY, depois faça um novo deploy."
+      "Variáveis de ambiente do Supabase não configuradas neste deploy.",
+      "Trocar o link ou domínio não resolve: as variáveis são por projeto no Vercel. No projeto que serve este site: Vercel → Project Settings → Environment Variables → adicione VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY (valores em Supabase Dashboard → Project Settings → API). Depois faça um novo deploy (Redeploy no Vercel)."
     );
     return;
   }

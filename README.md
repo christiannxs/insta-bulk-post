@@ -80,6 +80,14 @@ Se você fizer deploy na **Vercel** (ou outro host), configure estas variáveis 
 
 **Se a tela ficar preta no deploy:** quase sempre é falta dessas variáveis. Sem elas o app mostra uma mensagem pedindo para configurá-las; se o JS não carregar, aparece "Carregando…" em vez de tela totalmente preta.
 
+**Troquei o link/domínio e continua o erro:** as variáveis são **por projeto** no Vercel. Se você criou outro projeto ou reconectou o repositório, configure de novo as variáveis nesse projeto e faça um novo deploy.
+
+**Configurar variáveis direto do Cursor (sem abrir o painel da Vercel):** com o projeto já linkado à Vercel (`npx vercel link` uma vez) e o `.env` preenchido na raiz, rode:
+```bash
+npm run vercel:env
+```
+Isso envia `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` do seu `.env` para o projeto na Vercel. Depois faça um novo deploy (`npx vercel --prod` ou push no repositório).
+
 ## Can I connect a custom domain to my Lovable project?
 
 Yes, you can!
