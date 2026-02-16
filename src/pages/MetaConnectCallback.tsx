@@ -10,6 +10,8 @@ export default function MetaConnectCallback() {
   const [message, setMessage] = useState("Conectando à Meta...");
 
   useEffect(() => {
+    let cancelled = false;
+
     const code = searchParams.get("code");
     const state = searchParams.get("state");
     const errorFromMeta = searchParams.get("error");
@@ -18,24 +20,25 @@ export default function MetaConnectCallback() {
       const desc = searchParams.get("error_description") ?? "Acesso negado ou cancelado.";
       setStatus("error");
       setMessage(desc);
-      setTimeout(() => navigate("/accounts?error=" + encodeURIComponent(desc), { replace: true }), 2500);
-      return;
+      const t = setTimeout(() => !cancelled && navigate("/accounts?error=" + encodeURIComponent(desc), { replace: true }), 2500);
+      return () => clearTimeout(t);
     }
 
     if (!code || !state || !metaStateMatches(state)) {
       setStatus("error");
       setMessage("Link inválido ou expirado. Tente conectar novamente.");
-      setTimeout(() => navigate("/accounts?error=invalid_callback", { replace: true }), 2500);
-      return;
+      const t = setTimeout(() => !cancelled && navigate("/accounts?error=invalid_callback", { replace: true }), 2500);
+      return () => clearTimeout(t);
     }
 
     (async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
         if (!session?.access_token) {
           setStatus("error");
           setMessage("Faça login novamente e tente conectar a conta.");
-          setTimeout(() => navigate("/login", { replace: true }), 2500);
+          setTimeout(() => !cancelled && navigate("/login", { replace: true }), 2500);
           return;
         }
 
@@ -44,10 +47,11 @@ export default function MetaConnectCallback() {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
 
+        if (cancelled) return;
         if (error) {
           setStatus("error");
           setMessage(error.message ?? "Erro ao conectar.");
-          setTimeout(() => navigate("/accounts?error=" + encodeURIComponent(error.message ?? "unknown"), { replace: true }), 2500);
+          setTimeout(() => !cancelled && navigate("/accounts?error=" + encodeURIComponent(error.message ?? "unknown"), { replace: true }), 2500);
           return;
         }
 
@@ -56,11 +60,16 @@ export default function MetaConnectCallback() {
         setMessage(added > 0 ? `Conta(s) conectada(s): ${added}. Redirecionando...` : "Nenhuma conta nova. Redirecionando...");
         navigate("/accounts?connected=" + (added > 0 ? "1" : "0"), { replace: true });
       } catch (e) {
+        if (cancelled) return;
         setStatus("error");
         setMessage(e instanceof Error ? e.message : "Erro inesperado.");
-        setTimeout(() => navigate("/accounts?error=unknown", { replace: true }), 2500);
+        setTimeout(() => !cancelled && navigate("/accounts?error=unknown", { replace: true }), 2500);
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [searchParams, navigate]);
 
   return (

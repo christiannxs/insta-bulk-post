@@ -116,7 +116,9 @@ Deno.serve(async (req) => {
       .from("instagram_accounts")
       .select("instagram_user_id")
       .eq("user_id", user.id);
-    (existing ?? []).forEach((r: { instagram_user_id: string }) => existingIgIds.add(r.instagram_user_id));
+    for (const row of existing ?? []) {
+      existingIgIds.add(row.instagram_user_id);
+    }
 
     let added = 0;
     for (const page of accountsData.data) {
@@ -129,6 +131,8 @@ Deno.serve(async (req) => {
       if (existingIgIds.has(igId)) continue;
 
       const pageToken = pageData.access_token ?? page.access_token;
+      if (!pageToken) continue;
+
       const igUserUrl = `${META_GRAPH}/${igId}?fields=username,profile_picture_url&access_token=${encodeURIComponent(pageToken)}`;
       const igRes = await fetch(igUserUrl);
       const igData: MetaIgUserResponse = await igRes.json();

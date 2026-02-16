@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,12 +28,15 @@ export default function NewPost() {
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [scheduleDate, setScheduleDate] = useState("");
   const [showDrivePicker, setShowDrivePicker] = useState(false);
+  const hasInitializedAccounts = useRef(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    if (accounts.length > 0 && selectedAccounts.length === 0) {
+    if (accounts.length > 0 && !hasInitializedAccounts.current) {
+      hasInitializedAccounts.current = true;
       setSelectedAccounts(accounts.map((a) => a.id));
     }
+    if (accounts.length === 0) hasInitializedAccounts.current = false;
   }, [accounts]);
 
   const toggleVideo = (id: string) => {
