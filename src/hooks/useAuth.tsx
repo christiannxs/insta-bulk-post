@@ -8,26 +8,44 @@ export function useAuth() {
 
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | null = null;
+    let cancelled = false;
+
+    const setLoadingFalse = () => {
+      if (!cancelled) setLoading(false);
+    };
+
+    const timeoutId = setTimeout(setLoadingFalse, 8000);
+
     try {
       const { data } = supabase.auth.onAuthStateChange((_event, session) => {
         setUser(session?.user ?? null);
-        setLoading(false);
+        setLoadingFalse();
       });
       subscription = data.subscription;
     } catch {
-      setLoading(false);
-      return;
+      setLoadingFalse();
+      clearTimeout(timeoutId);
+      return () => {};
     }
 
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
-        setUser(session?.user ?? null);
+        if (!cancelled) setUser(session?.user ?? null);
       })
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!cancelled) setUser(null);
+      })
+      .finally(() => {
+        setLoadingFalse();
+        clearTimeout(timeoutId);
+      });
 
-    return () => subscription?.unsubscribe?.();
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      subscription?.unsubscribe?.();
+    };
   }, []);
 
   const signOut = () => supabase.auth.signOut();
