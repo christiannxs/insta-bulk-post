@@ -1,5 +1,4 @@
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import "./index.css";
 
@@ -36,29 +35,35 @@ const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim();
 const supabaseKey = String(
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ""
 ).trim();
-const isProd = import.meta.env.PROD;
 const missingEnv = !supabaseUrl || !supabaseKey || !supabaseUrl.startsWith("https://");
 
-try {
+async function bootstrap() {
   const rootEl = document.getElementById("root");
   if (!rootEl) {
     showBootstrapError("Elemento #root não encontrado.");
-  } else if (isProd && missingEnv) {
+    return;
+  }
+  if (missingEnv) {
     showBootstrapError(
-      "Variáveis de ambiente do Supabase não configuradas neste deploy.",
+      "Variáveis de ambiente do Supabase não configuradas.",
       "No painel da Vercel: Project Settings → Environment Variables → adicione VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY, depois faça um novo deploy."
     );
-  } else {
+    return;
+  }
+  try {
+    const { default: App } = await import("./App.tsx");
     createRoot(rootEl).render(
       <ErrorBoundary>
         <App />
       </ErrorBoundary>
     );
+  } catch (err) {
+    console.error("Bootstrap error:", err);
+    showBootstrapError(
+      "Erro ao iniciar a aplicação. Verifique as variáveis de ambiente no deploy.",
+      err instanceof Error ? err.message : String(err)
+    );
   }
-} catch (err) {
-  console.error("Bootstrap error:", err);
-  showBootstrapError(
-    "Erro ao iniciar a aplicação. Verifique as variáveis de ambiente no deploy.",
-    err instanceof Error ? err.message : err
-  );
 }
+
+bootstrap();

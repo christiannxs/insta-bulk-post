@@ -14,7 +14,7 @@ export function useAuth() {
       if (!cancelled) setLoading(false);
     };
 
-    const timeoutId = setTimeout(setLoadingFalse, 8000);
+    const timeoutId = setTimeout(setLoadingFalse, 5000);
 
     try {
       const { data } = supabase.auth.onAuthStateChange((_event, session) => {

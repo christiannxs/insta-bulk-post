@@ -22,8 +22,18 @@
   <body style="background-color: #0d0d0d; color: #e5e5e5; min-height: 100vh;">
     <div id="root" style="min-height: 100vh; display: flex; align-items: center; justify-content: center;">
       <!-- Fallback visível se o JS não carregar (ex.: deploy sem assets). O React substitui isto ao montar. -->
-      <p style="color: #a3a3a3; font-family: system-ui, sans-serif;">Carregando…</p>
+      <p id="loading-fallback" style="color: #a3a3a3; font-family: system-ui, sans-serif;">Carregando…</p>
     </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Se após 8s o React não tiver substituído o conteúdo, o JS provavelmente não carregou (deploy/404/env).
+      setTimeout(function () {
+        var root = document.getElementById("root");
+        var fallback = document.getElementById("loading-fallback");
+        if (root && fallback && root.contains(fallback)) {
+          root.innerHTML = "<div style=\"text-align: center; max-width: 28rem; padding: 1rem;\"><p style=\"color: #a3a3a3; margin-bottom: 0.75rem;\">O carregamento está demorando.</p><p style=\"font-size: 0.875rem; color: #737373;\">Verifique: (1) Abra o Console do navegador (F12) para ver erros. (2) No Vercel, confira as variáveis <code style=\"background: #262626; padding: 0.125rem 0.25rem; border-radius: 0.25rem;\">VITE_SUPABASE_URL</code> e <code style=\"background: #262626; padding: 0.125rem 0.25rem; border-radius: 0.25rem;\">VITE_SUPABASE_PUBLISHABLE_KEY</code> e faça um novo deploy.</p></div>";
+        }
+      }, 8000);
+    </script>
   </body>
 </html>
