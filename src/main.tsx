@@ -3,8 +3,50 @@ import App from "./App.tsx";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import "./index.css";
 
-createRoot(document.getElementById("root")!).render(
-  <ErrorBoundary>
-    <App />
-  </ErrorBoundary>
-);
+function showBootstrapError(message: string, detail?: unknown) {
+  const root = document.getElementById("root");
+  if (!root) return;
+  root.innerHTML = `
+    <div style="
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      font-family: system-ui, sans-serif;
+      background: #0d0d0d;
+      color: #e5e5e5;
+      text-align: center;
+    ">
+      <h1 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">Não foi possível carregar o sistema</h1>
+      <p style="max-width: 28rem; margin-bottom: 1rem; color: #a3a3a3;">${message}</p>
+      <p style="font-size: 0.875rem; color: #737373;">
+        Configure no painel do deploy (ex.: Vercel) as variáveis de ambiente:
+        <code style="background: #262626; padding: 0.125rem 0.375rem; border-radius: 0.25rem;">VITE_SUPABASE_URL</code> e
+        <code style="background: #262626; padding: 0.125rem 0.375rem; border-radius: 0.25rem;">VITE_SUPABASE_PUBLISHABLE_KEY</code>,
+        depois faça um novo deploy.
+      </p>
+      ${detail ? `<pre style="font-size: 0.75rem; color: #525252; margin-top: 1rem; overflow: auto;">${String(detail)}</pre>` : ""}
+    </div>
+  `;
+}
+
+try {
+  const rootEl = document.getElementById("root");
+  if (!rootEl) {
+    showBootstrapError("Elemento #root não encontrado.");
+  } else {
+    createRoot(rootEl).render(
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    );
+  }
+} catch (err) {
+  console.error("Bootstrap error:", err);
+  showBootstrapError(
+    "Erro ao iniciar a aplicação. Verifique as variáveis de ambiente no deploy.",
+    err instanceof Error ? err.message : err
+  );
+}

@@ -64,6 +64,17 @@ This project is built with:
 
 Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
 
+### Variáveis de ambiente no deploy (obrigatório)
+
+Se você fizer deploy na **Vercel** (ou outro host), configure estas variáveis no painel do projeto **antes** do build:
+
+| Variável | Descrição |
+|----------|-----------|
+| `VITE_SUPABASE_URL` | URL do projeto (Supabase Dashboard → Project Settings → API → Project URL) |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Chave anon/public (Project Settings → API → anon public) |
+
+Sem elas, o app pode abrir em tela preta. Depois de definir, faça um **novo deploy** (Redeploy) para o build incluir os valores.
+
 ## Can I connect a custom domain to my Lovable project?
 
 Yes, you can!
