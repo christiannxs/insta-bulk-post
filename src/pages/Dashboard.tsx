@@ -106,7 +106,7 @@ export default function Dashboard() {
                       </p>
                     </div>
                     <Badge variant={statusConfig[post.status]?.variant ?? "outline"}>
-                      {statusConfig[post.status]?.label ?? post.status}
+                      {post.status === "pending" && post.scheduled_at ? "Agendado" : (statusConfig[post.status]?.label ?? post.status)}
                     </Badge>
                   </div>
                 </div>

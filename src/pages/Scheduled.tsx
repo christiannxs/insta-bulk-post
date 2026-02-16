@@ -50,6 +50,7 @@ export default function Scheduled() {
         {list.map((post) => {
           const config = statusConfig[post.status] ?? statusConfig.pending;
           const scheduledAt = post.scheduled_at ? new Date(post.scheduled_at) : null;
+          const label = post.status === "pending" && post.scheduled_at ? "Agendado" : config.label;
           return (
             <div key={post.id} className="flex items-center justify-between rounded-lg border border-border p-4">
               <div className="flex items-center gap-3">
@@ -65,7 +66,7 @@ export default function Scheduled() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={config.variant}>{config.label}</Badge>
+                <Badge variant={config.variant}>{label}</Badge>
                 {(post.status === "pending" || post.status === "scheduled") && (
                   <>
                     <Button size="sm" variant="ghost" onClick={() => handlePublishNow(post.id)}>

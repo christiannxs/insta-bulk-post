@@ -2,8 +2,20 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+// Aceita VITE_SUPABASE_PUBLISHABLE_KEY ou VITE_SUPABASE_ANON_KEY (nome comum na doc do Supabase)
+const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? '').trim();
+const SUPABASE_PUBLISHABLE_KEY = String(
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
+).trim();
+
+if (import.meta.env.DEV && (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY)) {
+  console.error(
+    '[Supabase] Variáveis de ambiente faltando. Crie um arquivo .env na raiz (mesma pasta do package.json) com:\n' +
+    '  VITE_SUPABASE_URL=https://SEU_PROJECT_ID.supabase.co\n' +
+    '  VITE_SUPABASE_PUBLISHABLE_KEY=sua_anon_public_key\n' +
+    'Pegue os valores em: Supabase Dashboard > Project Settings > API. Depois reinicie o servidor (npm run dev).'
+  );
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -15,3 +27,30 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+/** Use para exibir aviso na UI quando .env não estiver configurado */
+export const isSupabaseConfigured = (): boolean =>
+  Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY && SUPABASE_URL.startsWith("https://"));
+
+/**
+ * Testa se o servidor Supabase está acessível (URL e rede).
+ * Útil para diagnosticar "Não foi possível conectar ao servidor".
+ */
+export async function testSupabaseConnection(): Promise<
+  { ok: true } | { ok: false; reason: "unreachable" | "invalid_key" }
+> {
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    return { ok: false, reason: "unreachable" };
+  }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/health`, {
+      method: "GET",
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
+    });
+    if (res.ok) return { ok: true };
+    if (res.status === 401) return { ok: false, reason: "invalid_key" };
+    return { ok: false, reason: "unreachable" };
+  } catch {
+    return { ok: false, reason: "unreachable" };
+  }
+}

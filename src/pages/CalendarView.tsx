@@ -159,7 +159,7 @@ export default function CalendarView() {
                       </div>
                     </div>
                     <Badge variant={post.status === "published" ? "default" : post.status === "error" ? "destructive" : "secondary"}>
-                      {statusLabels[post.status] ?? post.status}
+                      {post.status === "pending" && post.scheduled_at ? "Agendado" : (statusLabels[post.status] ?? post.status)}
                     </Badge>
                   </div>
                 ))}

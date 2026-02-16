@@ -67,7 +67,7 @@ export default function NewPost() {
         video_name: videoName,
         caption: caption || null,
         scheduled_at: new Date(scheduleDate).toISOString(),
-        status: "scheduled",
+        status: "pending",
       });
       toast({ title: "Agendado!", description: `Post agendado para ${new Date(scheduleDate).toLocaleString("pt-BR")}.` });
       setCaption("");

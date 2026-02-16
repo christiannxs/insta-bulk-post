@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -5,13 +7,39 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PlusCircle, RefreshCw, Trash2, Instagram } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
+import { getMetaConnectUrl, isMetaConfigured } from "@/lib/metaOAuth";
 
 export default function Accounts() {
-  const { accounts, isLoading, removeAccount, isRemoving } = useInstagramAccounts();
+  const { accounts, isLoading, removeAccount, isRemoving, refetch } = useInstagramAccounts();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
 
+  useEffect(() => {
+    const connected = searchParams.get("connected");
+    const error = searchParams.get("error");
+    if (connected !== null || error !== null) {
+      setSearchParams({}, { replace: true });
+      if (connected === "1") {
+        refetch();
+        toast({ title: "Conta(s) conectada(s)", description: "Sua(s) conta(s) Instagram foi(ram) adicionada(s)." });
+      } else if (error) {
+        toast({ title: "Erro ao conectar", description: decodeURIComponent(error), variant: "destructive" });
+      }
+    }
+  }, [searchParams, setSearchParams, refetch, toast]);
+
   const handleConnect = () => {
-    toast({ title: "Em breve", description: "A conexão via Meta API será configurada em breve." });
+    if (!isMetaConfigured()) {
+      toast({
+        title: "Meta não configurada",
+        description: "Adicione VITE_META_APP_ID no .env (e META_APP_SECRET no Supabase para a Edge Function).",
+        variant: "destructive",
+      });
+      return;
+    }
+    const url = getMetaConnectUrl();
+    if (url) window.location.href = url;
+    else toast({ title: "Erro", description: "Não foi possível abrir o login da Meta.", variant: "destructive" });
   };
 
   const handleReconnect = (username: string) => {
