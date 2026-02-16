@@ -68,12 +68,17 @@ Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and 
 
 Se você fizer deploy na **Vercel** (ou outro host), configure estas variáveis no painel do projeto **antes** do build:
 
+1. Vercel: **Project → Settings → Environment Variables**
+2. Adicione (para Production, Preview e Development, se quiser):
+
 | Variável | Descrição |
 |----------|-----------|
 | `VITE_SUPABASE_URL` | URL do projeto (Supabase Dashboard → Project Settings → API → Project URL) |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Chave anon/public (Project Settings → API → anon public) |
 
-Sem elas, o app pode abrir em tela preta. Depois de definir, faça um **novo deploy** (Redeploy) para o build incluir os valores.
+3. **Redeploy**: depois de salvar as variáveis, faça **Deployments → … → Redeploy** (o build precisa rodar de novo para incluir os valores).
+
+**Se a tela ficar preta no deploy:** quase sempre é falta dessas variáveis. Sem elas o app mostra uma mensagem pedindo para configurá-las; se o JS não carregar, aparece "Carregando…" em vez de tela totalmente preta.
 
 ## Can I connect a custom domain to my Lovable project?
 

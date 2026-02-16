@@ -32,10 +32,22 @@ function showBootstrapError(message: string, detail?: unknown) {
   `;
 }
 
+const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim();
+const supabaseKey = String(
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ""
+).trim();
+const isProd = import.meta.env.PROD;
+const missingEnv = !supabaseUrl || !supabaseKey || !supabaseUrl.startsWith("https://");
+
 try {
   const rootEl = document.getElementById("root");
   if (!rootEl) {
     showBootstrapError("Elemento #root não encontrado.");
+  } else if (isProd && missingEnv) {
+    showBootstrapError(
+      "Variáveis de ambiente do Supabase não configuradas neste deploy.",
+      "No painel da Vercel: Project Settings → Environment Variables → adicione VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY, depois faça um novo deploy."
+    );
   } else {
     createRoot(rootEl).render(
       <ErrorBoundary>

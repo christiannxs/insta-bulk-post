@@ -20,7 +20,10 @@
   </head>
 
   <body style="background-color: #0d0d0d; color: #e5e5e5; min-height: 100vh;">
-    <div id="root" style="min-height: 100vh;"></div>
+    <div id="root" style="min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+      <!-- Fallback visível se o JS não carregar (ex.: deploy sem assets). O React substitui isto ao montar. -->
+      <p style="color: #a3a3a3; font-family: system-ui, sans-serif;">Carregando…</p>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
