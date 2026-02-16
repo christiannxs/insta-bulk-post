@@ -17,39 +17,25 @@ import {
   isToday,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
-interface CalendarPost {
-  id: string;
-  videoName: string;
-  caption: string;
-  date: Date;
-  status: "scheduled" | "published" | "error";
-  accounts: string[];
-}
-
-const mockPosts: CalendarPost[] = [
-  { id: "1", videoName: "promo_verao.mp4", caption: "Promoção de verão! 🔥", date: new Date(2026, 1, 17, 14, 0), status: "scheduled", accounts: ["loja_moda", "fitness_guru"] },
-  { id: "2", videoName: "treino_abs.mp4", caption: "Treino de abdominais 💪", date: new Date(2026, 1, 16, 10, 0), status: "published", accounts: ["fitness_guru"] },
-  { id: "3", videoName: "receita_acai.mp4", caption: "Receita de açaí fitness 🍇", date: new Date(2026, 1, 15, 18, 30), status: "error", accounts: ["receitas_fit"] },
-  { id: "4", videoName: "look_dia.mp4", caption: "Look do dia ✨", date: new Date(2026, 1, 15, 9, 0), status: "published", accounts: ["loja_moda"] },
-  { id: "5", videoName: "skincare_noite.mp4", caption: "Rotina de skincare 🌙", date: new Date(2026, 1, 20, 20, 0), status: "scheduled", accounts: ["loja_moda", "receitas_fit"] },
-  { id: "6", videoName: "treino_perna.mp4", caption: "Leg day! 🦵", date: new Date(2026, 1, 22, 8, 0), status: "scheduled", accounts: ["fitness_guru"] },
-];
+import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 
 const statusColors: Record<string, string> = {
+  pending: "bg-warning",
   scheduled: "bg-warning",
   published: "bg-success",
   error: "bg-destructive",
 };
 
 const statusLabels: Record<string, string> = {
+  pending: "Pendente",
   scheduled: "Agendado",
   published: "Publicado",
   error: "Erro",
 };
 
 export default function CalendarView() {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 1, 1));
+  const { posts, isLoading } = useScheduledPosts();
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const monthStart = startOfMonth(currentMonth);
@@ -64,9 +50,21 @@ export default function CalendarView() {
     day = addDays(day, 1);
   }
 
-  const getPostsForDay = (d: Date) => mockPosts.filter((p) => isSameDay(p.date, d));
+  const getPostsForDay = (d: Date) =>
+    posts.filter((p) => {
+      const postDate = p.scheduled_at ? new Date(p.scheduled_at) : new Date(p.created_at);
+      return isSameDay(postDate, d);
+    });
 
   const selectedDayPosts = selectedDate ? getPostsForDay(selectedDate) : [];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -101,7 +99,7 @@ export default function CalendarView() {
               </div>
             ))}
             {days.map((d, i) => {
-              const posts = getPostsForDay(d);
+              const dayPosts = getPostsForDay(d);
               const inMonth = isSameMonth(d, currentMonth);
               const today = isToday(d);
               const selected = selectedDate && isSameDay(d, selectedDate);
@@ -109,6 +107,7 @@ export default function CalendarView() {
               return (
                 <button
                   key={i}
+                  type="button"
                   onClick={() => setSelectedDate(d)}
                   className={`relative flex min-h-[72px] flex-col items-start rounded-md border p-1.5 text-left transition-colors ${
                     !inMonth ? "border-transparent text-muted-foreground/40" : "border-border hover:bg-muted/50"
@@ -117,13 +116,13 @@ export default function CalendarView() {
                   <span className={`text-xs font-medium ${today ? "text-primary" : ""}`}>
                     {format(d, "d")}
                   </span>
-                  {posts.length > 0 && (
+                  {dayPosts.length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-0.5">
-                      {posts.slice(0, 3).map((p) => (
-                        <span key={p.id} className={`h-1.5 w-1.5 rounded-full ${statusColors[p.status]}`} />
+                      {dayPosts.slice(0, 3).map((p) => (
+                        <span key={p.id} className={`h-1.5 w-1.5 rounded-full ${statusColors[p.status] ?? "bg-muted"}`} />
                       ))}
-                      {posts.length > 3 && (
-                        <span className="text-[9px] text-muted-foreground">+{posts.length - 3}</span>
+                      {dayPosts.length > 3 && (
+                        <span className="text-[9px] text-muted-foreground">+{dayPosts.length - 3}</span>
                       )}
                     </div>
                   )}
@@ -153,14 +152,14 @@ export default function CalendarView() {
                         <Film className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium">{post.videoName}</p>
+                        <p className="text-sm font-medium">{post.video_name ?? post.video_url}</p>
                         <p className="text-xs text-muted-foreground">
-                          {format(post.date, "HH:mm")} • {post.accounts.map((a) => `@${a}`).join(", ")}
+                          {post.scheduled_at ? format(new Date(post.scheduled_at), "HH:mm") : "—"}
                         </p>
                       </div>
                     </div>
                     <Badge variant={post.status === "published" ? "default" : post.status === "error" ? "destructive" : "secondary"}>
-                      {statusLabels[post.status]}
+                      {statusLabels[post.status] ?? post.status}
                     </Badge>
                   </div>
                 ))}

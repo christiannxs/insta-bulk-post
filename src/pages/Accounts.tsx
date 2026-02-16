@@ -1,27 +1,13 @@
-import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PlusCircle, RefreshCw, Trash2, Instagram } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-interface Account {
-  id: string;
-  username: string;
-  status: "active" | "expired";
-  followersCount: string;
-  postsPublished: number;
-}
-
-const initialAccounts: Account[] = [
-  { id: "1", username: "loja_moda", status: "active", followersCount: "12.4K", postsPublished: 34 },
-  { id: "2", username: "fitness_guru", status: "active", followersCount: "8.1K", postsPublished: 22 },
-  { id: "3", username: "receitas_fit", status: "expired", followersCount: "5.6K", postsPublished: 15 },
-];
+import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
 
 export default function Accounts() {
-  const [accounts, setAccounts] = useState<Account[]>(initialAccounts);
+  const { accounts, isLoading, removeAccount, isRemoving } = useInstagramAccounts();
   const { toast } = useToast();
 
   const handleConnect = () => {
@@ -32,10 +18,28 @@ export default function Accounts() {
     toast({ title: "Reconectar", description: `Reconectando @${username}...` });
   };
 
-  const handleRemove = (id: string) => {
-    setAccounts((prev) => prev.filter((a) => a.id !== id));
-    toast({ title: "Conta removida" });
+  const handleRemove = async (id: string) => {
+    try {
+      await removeAccount(id);
+      toast({ title: "Conta removida" });
+    } catch (e: unknown) {
+      toast({
+        title: "Erro ao remover",
+        description: e instanceof Error ? e.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
+
+  const isActive = (status: string) => status === "active";
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -66,30 +70,37 @@ export default function Accounts() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-11 w-11">
+                      <AvatarImage src={account.profile_picture_url ?? undefined} alt={account.username} />
                       <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
                         {account.username.slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <p className="font-semibold">@{account.username}</p>
-                      <p className="text-xs text-muted-foreground">{account.followersCount} seguidores</p>
+                      <p className="text-xs text-muted-foreground">Conta conectada</p>
                     </div>
                   </div>
-                  <Badge variant={account.status === "active" ? "default" : "destructive"}>
-                    {account.status === "active" ? "Ativa" : "Expirada"}
+                  <Badge variant={isActive(account.status) ? "default" : "destructive"}>
+                    {isActive(account.status) ? "Ativa" : "Expirada"}
                   </Badge>
                 </div>
 
                 <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-                  <p className="text-xs text-muted-foreground">{account.postsPublished} posts publicados</p>
+                  <p className="text-xs text-muted-foreground">Instagram Business/Creator</p>
                   <div className="flex gap-2">
-                    {account.status === "expired" && (
+                    {!isActive(account.status) && (
                       <Button size="sm" variant="outline" onClick={() => handleReconnect(account.username)}>
                         <RefreshCw className="mr-1 h-3 w-3" />
                         Reconectar
                       </Button>
                     )}
-                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => handleRemove(account.id)}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleRemove(account.id)}
+                      disabled={isRemoving}
+                    >
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>

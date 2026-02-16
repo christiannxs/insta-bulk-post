@@ -4,12 +4,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "@/pages/Dashboard";
 import Accounts from "@/pages/Accounts";
 import NewPost from "@/pages/NewPost";
 import CalendarView from "@/pages/CalendarView";
 import Scheduled from "@/pages/Scheduled";
 import NotFound from "@/pages/NotFound";
+import LoginPage from "@/pages/LoginPage";
 
 const queryClient = new QueryClient();
 
@@ -20,7 +22,14 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route element={<AppLayout />}>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route path="/" element={<Dashboard />} />
             <Route path="/accounts" element={<Accounts />} />
             <Route path="/new-post" element={<NewPost />} />

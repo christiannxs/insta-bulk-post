@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { FolderOpen, Film, Send, Clock, X, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
+import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 
 const mockVideos = [
   { id: "v1", name: "promo_verao.mp4", size: "12.4 MB", duration: "0:30" },
@@ -16,19 +19,22 @@ const mockVideos = [
   { id: "v5", name: "dica_skincare.mp4", size: "15.3 MB", duration: "0:35" },
 ];
 
-const mockAccounts = [
-  { id: "1", username: "loja_moda" },
-  { id: "2", username: "fitness_guru" },
-  { id: "3", username: "receitas_fit" },
-];
-
 export default function NewPost() {
+  const { user } = useAuth();
+  const { accounts, isLoading: accountsLoading } = useInstagramAccounts();
+  const { addPost, isAdding } = useScheduledPosts();
   const [selectedVideos, setSelectedVideos] = useState<string[]>([]);
   const [caption, setCaption] = useState("");
-  const [selectedAccounts, setSelectedAccounts] = useState<string[]>(mockAccounts.map((a) => a.id));
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [scheduleDate, setScheduleDate] = useState("");
   const [showDrivePicker, setShowDrivePicker] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (accounts.length > 0 && selectedAccounts.length === 0) {
+      setSelectedAccounts(accounts.map((a) => a.id));
+    }
+  }, [accounts]);
 
   const toggleVideo = (id: string) => {
     setSelectedVideos((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
@@ -42,13 +48,50 @@ export default function NewPost() {
     toast({ title: "Em breve", description: "A publicação será implementada com a integração da Meta API." });
   };
 
-  const handleSchedule = () => {
+  const handleSchedule = async () => {
+    if (!user?.id) return;
     if (!scheduleDate) {
       toast({ title: "Selecione uma data", variant: "destructive" });
       return;
     }
-    toast({ title: "Em breve", description: "O agendamento será implementado em breve." });
+    if (selectedVideos.length === 0) {
+      toast({ title: "Selecione ao menos um vídeo", variant: "destructive" });
+      return;
+    }
+    const videoName = mockVideos.find((v) => v.id === selectedVideos[0])?.name ?? "Vídeo";
+    const videoUrl = "https://placeholder.local/" + (selectedVideos[0] ?? "pending");
+    try {
+      await addPost({
+        user_id: user.id,
+        video_url: videoUrl,
+        video_name: videoName,
+        caption: caption || null,
+        scheduled_at: new Date(scheduleDate).toISOString(),
+        status: "scheduled",
+      });
+      toast({ title: "Agendado!", description: `Post agendado para ${new Date(scheduleDate).toLocaleString("pt-BR")}.` });
+      setCaption("");
+      setScheduleDate("");
+      setSelectedVideos([]);
+    } catch (e: unknown) {
+      toast({
+        title: "Erro ao agendar",
+        description: e instanceof Error ? e.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
+
+  const canSubmit = selectedVideos.length > 0 && selectedAccounts.length > 0;
+  const isLoading = accountsLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -58,7 +101,6 @@ export default function NewPost() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left: Video Selection */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -101,7 +143,7 @@ export default function NewPost() {
                       <Badge key={id} variant="secondary" className="gap-1 py-1.5 pl-3 pr-2">
                         <Film className="h-3 w-3" />
                         {video?.name}
-                        <button onClick={() => toggleVideo(id)} className="ml-1 rounded-full hover:bg-muted">
+                        <button type="button" onClick={() => toggleVideo(id)} className="ml-1 rounded-full hover:bg-muted">
                           <X className="h-3 w-3" />
                         </button>
                       </Badge>
@@ -132,22 +174,25 @@ export default function NewPost() {
           </Card>
         </div>
 
-        {/* Right: Accounts & Actions */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Contas</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {mockAccounts.map((account) => (
-                <label key={account.id} className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50">
-                  <Checkbox
-                    checked={selectedAccounts.includes(account.id)}
-                    onCheckedChange={() => toggleAccount(account.id)}
-                  />
-                  <span className="text-sm font-medium">@{account.username}</span>
-                </label>
-              ))}
+              {accounts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Conecte contas em Contas Instagram para publicar.</p>
+              ) : (
+                accounts.map((account) => (
+                  <label key={account.id} className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50">
+                    <Checkbox
+                      checked={selectedAccounts.includes(account.id)}
+                      onCheckedChange={() => toggleAccount(account.id)}
+                    />
+                    <span className="text-sm font-medium">@{account.username}</span>
+                  </label>
+                ))
+              )}
             </CardContent>
           </Card>
 
@@ -167,7 +212,7 @@ export default function NewPost() {
           <div className="flex flex-col gap-3">
             <Button
               onClick={handlePublish}
-              disabled={selectedVideos.length === 0 || selectedAccounts.length === 0}
+              disabled={!canSubmit}
               className="w-full"
             >
               <Send className="mr-2 h-4 w-4" />
@@ -176,11 +221,11 @@ export default function NewPost() {
             <Button
               variant="outline"
               onClick={handleSchedule}
-              disabled={selectedVideos.length === 0 || selectedAccounts.length === 0}
+              disabled={!canSubmit || isAdding}
               className="w-full"
             >
               <Clock className="mr-2 h-4 w-4" />
-              Agendar
+              {isAdding ? "Agendando..." : "Agendar"}
             </Button>
           </div>
 
