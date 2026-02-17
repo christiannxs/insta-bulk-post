@@ -133,7 +133,21 @@ Links apenas para "Pessoas específicas" ou só para você não funcionam na pub
 
 ---
 
-## 6. Resumo rápido
+## 6. Erro "Failed to send a request to the Edge Function"
+
+Se ao clicar em **Carregar vídeos** aparecer "Erro no Drive" com essa mensagem:
+
+1. **Confirme que as Edge Functions estão publicadas** no mesmo projeto Supabase que o app usa:
+   ```bash
+   npx supabase functions deploy google-connect
+   npx supabase functions deploy drive-list
+   ```
+2. **Confira o `.env`**: `VITE_SUPABASE_URL` deve ser a URL do projeto (ex.: `https://SEU_PROJECT_ID.supabase.co`).
+3. Se o projeto for **remoto** (Supabase na nuvem), faça login antes do deploy: `npx supabase login` e depois `npx supabase link --project-ref SEU_PROJECT_ID` na pasta do projeto.
+
+---
+
+## 7. Resumo rápido
 
 | Onde | O que fazer |
 |------|-------------|

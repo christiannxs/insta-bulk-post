@@ -107,7 +107,14 @@ export default function NewPost() {
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro ao carregar";
-      toast({ title: "Erro no Drive", description: msg, variant: "destructive" });
+      const isEdgeFunctionError = msg.includes("Failed to send a request to the Edge Function");
+      toast({
+        title: "Erro no Drive",
+        description: isEdgeFunctionError
+          ? "Não foi possível chamar a função do Drive. Confira se a Edge Function drive-list está publicada no Supabase (npx supabase functions deploy drive-list) e se a URL do projeto no .env está correta."
+          : msg,
+        variant: "destructive",
+      });
       if (msg.includes("Conecte sua conta Google")) {
         const url = getGoogleConnectUrl();
         if (url) window.location.href = url;

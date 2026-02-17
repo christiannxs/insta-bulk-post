@@ -3,11 +3,7 @@
 // Body: { folder_id?: string, file_id?: string } — um dos dois.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "../_shared/cors.ts";
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const VIDEO_MIME = "mimeType contains 'video/'";
@@ -41,7 +37,7 @@ async function refreshAccessToken(
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
   const json = (data: unknown, status: number) =>
