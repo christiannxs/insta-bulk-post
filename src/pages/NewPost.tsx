@@ -93,8 +93,9 @@ export default function NewPost() {
         let msg = err ?? error.message ?? "Erro ao chamar o Drive.";
         if (error instanceof FunctionsHttpError && error.context) {
           try {
-            const body = await (error.context as Response).json() as { error?: string };
-            if (typeof body?.error === "string") msg = body.error;
+            const res = error.context as Response;
+            const body = await res.clone().json().catch(() => null) as { error?: string } | null;
+            if (body && typeof body.error === "string") msg = body.error;
           } catch {
             // body já consumido ou não é JSON
           }
@@ -119,13 +120,14 @@ export default function NewPost() {
         toast({ title: "Vídeos carregados", description: `${videos.length} vídeo(s) encontrado(s).` });
       }
     } catch (e) {
+      console.error("Erro ao carregar Drive:", e);
       const msg = e instanceof Error ? e.message : "Erro ao carregar";
       const isNetworkOrInvoke =
         msg.includes("Failed to send a request to the Edge Function") ||
         msg.includes("Edge Function returned a non-2xx");
-      const description = isNetworkOrInvoke
-        ? "Confira: 1) Conecte o Google (botão «Conectar Google») antes de carregar; 2) Edge Function drive-list publicada (npx supabase functions deploy drive-list); 3) .env com VITE_SUPABASE_URL correta."
-        : msg;
+      const checklist =
+        "Confira: 1) Conecte o Google (botão «Conectar Google») antes de carregar; 2) Edge Function drive-list publicada (npx supabase functions deploy drive-list); 3) .env com VITE_SUPABASE_URL correta.";
+      const description = isNetworkOrInvoke ? `${msg}\n\n${checklist}` : msg;
       toast({
         title: "Erro no Drive",
         description,
