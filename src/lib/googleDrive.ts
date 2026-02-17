@@ -6,6 +6,28 @@
 const GOOGLE_SCOPES = "https://www.googleapis.com/auth/drive.readonly";
 const STATE_KEY = "google_drive_connect_state";
 
+function setStateStorage(value: string) {
+  if (typeof sessionStorage !== "undefined") sessionStorage.setItem(STATE_KEY, value);
+  if (typeof localStorage !== "undefined") localStorage.setItem(STATE_KEY, value);
+}
+
+function getAndClearStateStorage(): string | null {
+  let s: string | null = null;
+  if (typeof sessionStorage !== "undefined") {
+    s = sessionStorage.getItem(STATE_KEY);
+    sessionStorage.removeItem(STATE_KEY);
+  }
+  if (s) {
+    if (typeof localStorage !== "undefined") localStorage.removeItem(STATE_KEY);
+    return s;
+  }
+  if (typeof localStorage !== "undefined") {
+    s = localStorage.getItem(STATE_KEY);
+    localStorage.removeItem(STATE_KEY);
+  }
+  return s;
+}
+
 export function isGoogleDriveConfigured(): boolean {
   const id = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
   return Boolean(id);
@@ -21,9 +43,7 @@ export function getGoogleConnectUrl(): string | null {
   if (!clientId) return null;
   const redirectUri = getGoogleDriveRedirectUri();
   const state = crypto.randomUUID();
-  if (typeof sessionStorage !== "undefined") {
-    sessionStorage.setItem(STATE_KEY, state);
-  }
+  setStateStorage(state);
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -37,14 +57,11 @@ export function getGoogleConnectUrl(): string | null {
 }
 
 export function getStoredGoogleState(): string | null {
-  if (typeof sessionStorage === "undefined") return null;
-  const s = sessionStorage.getItem(STATE_KEY);
-  sessionStorage.removeItem(STATE_KEY);
-  return s;
+  return getAndClearStateStorage();
 }
 
 export function googleStateMatches(expected: string | null): boolean {
-  const stored = getStoredGoogleState();
+  const stored = getAndClearStateStorage();
   return Boolean(stored && expected && stored === expected);
 }
 

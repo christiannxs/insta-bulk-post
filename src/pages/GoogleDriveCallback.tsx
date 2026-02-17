@@ -1,7 +1,26 @@
 import { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getGoogleDriveRedirectUri, googleStateMatches } from "@/lib/googleDrive";
+
+const SESSION_WAIT_MS = 6000;
+const SESSION_POLL_MS = 300;
+const MAX_401_RETRIES = 4;
+const RETRY_DELAYS_MS = [400, 800, 1600, 3200];
+
+/** Espera a sessão estar disponível após redirect (poll getSession + refresh), evita 401 por timing. */
+async function waitForSession(cancelled: () => boolean): Promise<Session | null> {
+  const deadline = Date.now() + SESSION_WAIT_MS;
+  while (Date.now() < deadline && !cancelled()) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) return session;
+    await new Promise((r) => setTimeout(r, SESSION_POLL_MS));
+  }
+  const { data: { session }, error } = await supabase.auth.refreshSession();
+  if (!error && session?.access_token) return session;
+  return null;
+}
 
 export default function GoogleDriveCallback() {
   const [searchParams] = useSearchParams();
@@ -31,14 +50,16 @@ export default function GoogleDriveCallback() {
 
     (async () => {
       try {
-        // Pausa para o Supabase hidratar a sessão do localStorage após o redirect do Google
-        await new Promise((r) => setTimeout(r, 400));
+        const session = await waitForSession(() => cancelled);
+        if (cancelled) return;
+        if (!session?.access_token) {
+          throw new Error("NO_SESSION");
+        }
 
         const doRequest = async (): Promise<Response> => {
-          const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
-          if (sessionError || !session?.access_token) {
-            throw new Error("NO_SESSION");
-          }
+          const { data: { session: s }, error: sessionError } = await supabase.auth.refreshSession();
+          const token = (s?.access_token ?? session.access_token);
+          if (sessionError || !token) throw new Error("NO_SESSION");
           const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? "";
           const anonKey = (
             import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ""
@@ -47,7 +68,7 @@ export default function GoogleDriveCallback() {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
+              Authorization: `Bearer ${token}`,
               apikey: anonKey,
             },
             body: JSON.stringify({ code, redirect_uri: getGoogleDriveRedirectUri() }),
@@ -57,9 +78,8 @@ export default function GoogleDriveCallback() {
         let res = await doRequest();
         if (cancelled) return;
 
-        // Se 401, tenta uma vez mais após novo refresh (evita falha por timing após redirect)
-        if (res.status === 401) {
-          await new Promise((r) => setTimeout(r, 300));
+        for (let i = 0; i < MAX_401_RETRIES && res.status === 401 && !cancelled; i++) {
+          await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[i]));
           if (cancelled) return;
           res = await doRequest();
         }
