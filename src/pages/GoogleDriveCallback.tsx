@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { getGoogleDriveRedirectUri, googleStateMatches } from "@/lib/googleDrive";
 
@@ -41,27 +40,28 @@ export default function GoogleDriveCallback() {
           return;
         }
 
-        const { data, error } = await supabase.functions.invoke("google-connect", {
-          body: { code, redirect_uri: getGoogleDriveRedirectUri() },
-          headers: { Authorization: `Bearer ${session.access_token}` },
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? "";
+        const anonKey = (
+          import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ""
+        ).trim();
+        const res = await fetch(`${supabaseUrl}/functions/v1/google-connect`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: anonKey,
+          },
+          body: JSON.stringify({ code, redirect_uri: getGoogleDriveRedirectUri() }),
         });
 
         if (cancelled) return;
 
-        let errMsg: string | undefined;
-        if (error instanceof FunctionsHttpError && error.context) {
-          try {
-            const body = await error.context.json() as { error?: string };
-            errMsg = body?.error;
-          } catch {
-            /* ignorar se não conseguir parsear */
-          }
-        }
-        errMsg ??= (data as { error?: string } | null)?.error;
+        const body = (await res.json().catch(() => ({}))) as { error?: string; success?: boolean };
+        const errMsg = body?.error;
 
-        if (error) {
+        if (!res.ok) {
           setStatus("error");
-          setMessage(errMsg ?? error.message ?? "Erro ao conectar.");
+          setMessage(errMsg ?? `Erro ${res.status}. Verifique os logs da Edge Function.`);
           setTimeout(() => !cancelled && navigate("/new-post", { replace: true }), 2500);
           return;
         }
