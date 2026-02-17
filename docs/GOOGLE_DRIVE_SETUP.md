@@ -188,6 +188,27 @@ Se, ao voltar da tela de autorização do Google, aparecer **"The OAuth client w
 
 ---
 
+## 6.2 Erro "Erro 401 ao chamar o Drive"
+
+Se ao colar o link do Drive e clicar em **Carregar vídeos** aparecer **"Erro no Drive"** com **"Erro 401 ao chamar o Drive"** (ou "Sessão inválida ou expirada"):
+
+1. **Muitas vezes é consequência do "OAuth client was not found"**  
+   Se antes você viu "The OAuth client was not found" ao conectar o Google, corrija primeiro o cliente OAuth (seção 6.1). Depois faça **Conectar Google** de novo, autorize o app e só então use **Carregar vídeos**.
+
+2. **Sessão do app expirada**  
+   Faça **logout e login** no app e, em seguida, **Conectar Google** de novo na tela Novo Post. Só então cole o link e clique em Carregar vídeos.
+
+3. **Secrets da drive-list**  
+   A Edge Function `drive-list` também usa `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` para renovar o access token do Drive. Confira em **Supabase → Settings → Edge Functions → Secrets** se os dois estão definidos e corretos. Depois:
+   ```bash
+   npx supabase functions deploy drive-list
+   ```
+
+4. **Conecte o Google antes de carregar**  
+   É obrigatório ter clicado em **Conectar Google** e autorizado o app pelo menos uma vez antes de carregar vídeos. Se não tiver, a API retorna 401/400.
+
+---
+
 ## 7. Erro "Failed to send a request" ou "Edge Function returned a non-2xx status code"
 
 Se ao colar o link do Drive e clicar em **Carregar vídeos** aparecer **"Erro no Drive"** com uma dessas mensagens:

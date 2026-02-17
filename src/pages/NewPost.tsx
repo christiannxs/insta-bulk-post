@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Send, Clock, Film, FolderOpen, Loader2 } from "lucide-react";
+import { Send, Clock, Film, FolderOpen, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
@@ -32,8 +33,50 @@ export default function NewPost() {
   const [isLoadingDrive, setIsLoadingDrive] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
   const hasInitializedAccounts = useRef(false);
   const { toast } = useToast();
+
+  const fetchGoogleStatus = async () => {
+    if (!user || !isGoogleDriveConfigured()) {
+      setGoogleConnected(null);
+      return;
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setGoogleConnected(false);
+      return;
+    }
+    const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim();
+    const anonKey = String(
+      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ""
+    ).trim();
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/drive-status`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: anonKey,
+        },
+      });
+      const data = (await res.json().catch(() => ({}))) as { connected?: boolean };
+      setGoogleConnected(Boolean(data.connected));
+    } catch {
+      setGoogleConnected(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGoogleStatus();
+  }, [user?.id]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && user && isGoogleDriveConfigured()) fetchGoogleStatus();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [user?.id]);
 
   useEffect(() => {
     if (accounts.length > 0 && !hasInitializedAccounts.current) {
@@ -101,7 +144,11 @@ export default function NewPost() {
         download_base?: string;
       };
       if (!res.ok) {
-        const msg = data?.error ?? `Erro ${res.status} ao chamar o Drive.`;
+        const serverMsg = data?.error ?? "";
+        const msg =
+          res.status === 401
+            ? serverMsg || "Sessão inválida ou expirada. Faça login de novo e clique em «Conectar Google» antes de carregar."
+            : serverMsg || `Erro ${res.status} ao chamar o Drive.`;
         throw new Error(msg);
       }
       if (data?.error) throw new Error(data.error);
@@ -115,6 +162,7 @@ export default function NewPost() {
         downloadUrl: base + f.id,
       }));
       setDriveVideos(videos);
+      setGoogleConnected(true);
       setSelectedVideoIds(videos.map((v) => v.id));
       if (videos.length === 0) {
         toast({ title: "Nenhum vídeo", description: "A pasta ou o arquivo não contém vídeos." });
@@ -131,7 +179,15 @@ export default function NewPost() {
         msg.includes("Load failed");
       const checklist =
         "Confira: 1) Conecte o Google (botão «Conectar Google») antes de carregar; 2) Edge Function drive-list publicada (npx supabase functions deploy drive-list); 3) .env com VITE_SUPABASE_URL correta.";
-      const description = isNetwork ? `${msg}\n\n${checklist}` : msg;
+      const is401OrSession =
+        msg.includes("401") || msg.includes("Sessão inválida") || msg.includes("expirada");
+      const sessionHint =
+        "Se antes apareceu «OAuth client was not found», corrija no Google Cloud e no Supabase (secrets) e conecte o Google de novo. Veja docs/GOOGLE_DRIVE_SETUP.md (seções 6.1 e 6.2).";
+      const description = isNetwork
+        ? `${msg}\n\n${checklist}`
+        : is401OrSession
+          ? `${msg}\n\n${sessionHint}`
+          : msg;
       toast({
         title: "Erro no Drive",
         description,
@@ -298,16 +354,38 @@ export default function NewPost() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
               <CardTitle className="text-base flex items-center gap-2">
                 <FolderOpen className="h-4 w-4" />
                 Google Drive
               </CardTitle>
-              {isGoogleDriveConfigured() && (
-                <Button variant="outline" size="sm" onClick={handleConnectGoogle}>
-                  Conectar Google
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {isGoogleDriveConfigured() && (
+                  <>
+                    {googleConnected === null && (
+                      <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Verificando…
+                      </span>
+                    )}
+                    {googleConnected === true && (
+                      <Badge variant="default" className="bg-green-600 hover:bg-green-600 gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Conectado ao Google
+                      </Badge>
+                    )}
+                    {googleConnected === false && (
+                      <Badge variant="secondary" className="gap-1">
+                        <XCircle className="h-3.5 w-3.5" />
+                        Não conectado
+                      </Badge>
+                    )}
+                    <Button variant="outline" size="sm" onClick={handleConnectGoogle}>
+                      Conectar Google
+                    </Button>
+                  </>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {!isGoogleDriveConfigured() && (
