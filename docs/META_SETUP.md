@@ -1,105 +1,76 @@
-# Passo a passo: configurar o app Meta (PHD) para conectar Instagram
+# Configurar o app Meta para conectar Instagram (API oficial)
+
+O sistema usa **apenas** a conexão direta com o Instagram: **Instagram API with Instagram Login**. Não é necessário Facebook nem Página do Facebook.
 
 Use este guia depois de criar o app no [Painel de Desenvolvedores da Meta](https://developers.facebook.com).
 
 ---
 
-## 1. Pegar o App ID e o App Secret
+## 1. App ID e App Secret
 
 1. No menu à esquerda, clique em **Configurações do app** (App settings).
-2. Na página que abrir, em **Básico** (Basic), anote:
-   - **ID do app** → você vai usar no `.env` como `VITE_META_APP_ID`
-   - **Chave secreta do app** → você vai usar **só no Supabase** (secrets da Edge Function), **nunca** no frontend
+2. Em **Básico** (Basic), anote:
+   - **ID do app** → use no `.env` como `VITE_META_APP_ID`
+   - **Chave secreta do app** → use **somente no Supabase** (secrets da Edge Function), nunca no frontend
 
-Guarde a chave secreta em um lugar seguro; você vai precisar no passo 6.
+Guarde a chave secreta em local seguro; você vai precisar no passo 5.
 
 ---
 
-## 2. Configurar o produto "Facebook Login"
+## 2. Instagram API with Instagram Login
 
-1. No menu à esquerda, em **Produtos** (ou em **Facebook Login para...**), abra **Facebook Login**.
-2. Clique em **Configurações** (Settings).
-3. Em **URIs de redirecionamento OAuth válidos** (Valid OAuth Redirect URIs), adicione **uma linha por URL**:
+1. No menu à esquerda, vá em **Instagram** → **API setup with Instagram business login** (ou **Configuração da API com login empresarial do Instagram**).
+2. Em **Set up business login** / **Configurar login empresarial**, abra **Business login settings**.
+3. Em **OAuth redirect URIs**, adicione **uma URL por linha**:
 
    **Desenvolvimento (localhost):**
    ```
-   http://localhost:5173/accounts/connect/callback
+   http://localhost:5173/accounts/connect/instagram/callback
    ```
 
-   **Produção (quando tiver o domínio do app):**
+   **Produção (quando tiver o domínio):**
    ```
-   https://SEU-DOMINIO.com/accounts/connect/callback
-   ```
-
-   Exemplo se for Vercel/Netlify:
-   ```
-   https://insta-bulk-post.vercel.app/accounts/connect/callback
+   https://SEU-DOMINIO.com/accounts/connect/instagram/callback
    ```
 
-4. Em **Modo de uso** (se existir), deixe em **Web**.
-5. Clique em **Salvar alterações**.
+   Exemplo Vercel:
+   ```
+   https://insta-bulk-post.vercel.app/accounts/connect/instagram/callback
+   ```
+
+4. Use o **mesmo** App ID e App Secret do app em todo o fluxo (`VITE_META_APP_ID` no frontend e `META_APP_ID` / `META_APP_SECRET` nos secrets do Supabase).
 
 ---
 
-## 3. Garantir permissões do Instagram (Graph API)
+## 3. Permissões (scopes)
 
-Na interface atual do Painel da Meta **não existe mais um item “Instagram” no menu à esquerda**. O produto Instagram é adicionado pelos **Casos de uso** ou pelo Painel principal.
+O app pede estes scopes na tela de autorização do Instagram (já configurados em `src/lib/instagramOAuth.ts`):
 
-### Opção A — Pelo Painel (recomendado)
+- `instagram_business_basic` — dados básicos do perfil
+- `instagram_business_content_publish` — publicar conteúdo (Reels, fotos, etc.)
 
-1. No menu à esquerda, clique em **Painel** (Dashboard).
-2. Na página do Painel, clique no botão **Adicionar casos de uso** (no canto superior direito).
-3. No filtro à esquerda, escolha **Gerenciamento de conteúdo**. Na lista, marque **Gerenciar mensagens e conteúdo no Instagram** (publicar posts, stories, responder comentários e mensagens com a API do Instagram). Clique em **Salvar**.
-4. Se aparecer um card do produto **Instagram** na própria página do Painel (ao rolar), clique em **Configurar** ou **Set up** nesse card.
+Não é necessário configurar permissões de Facebook nem Página.
 
-### Opção B — Pelo menu Casos de uso
-
-1. No menu à esquerda, clique em **Casos de uso** (Use cases).
-2. Clique em **Adicionar casos de uso** ou edite os existentes.
-3. Adicione ou personalize o caso de uso que dá acesso à **API do Instagram** (publicar conteúdo, gerenciar comentários, etc.). Associe ao **Facebook Login** se for pedido.
-
-### Permissões necessárias
-
-Para publicar Reels e conteúdo, o app precisa pedir estas permissões no login:
-
-- `pages_show_list` — lista de páginas do Facebook
-- `instagram_basic` — dados básicos do perfil Instagram
-- `instagram_content_publish` — publicar conteúdo (Reels, fotos, etc.)
-
-O nosso código já envia essas permissões na URL de login (`src/lib/metaOAuth.ts`). Você **não** precisa configurar nada extra no código.
-
-### Como as permissões são concedidas
-
-1. **No painel da Meta**  
-   Ao adicionar o caso de uso **“Gerenciar mensagens e conteúdo no Instagram”** (passo 3), o app fica autorizado a *pedir* essas permissões. Não existe uma tela separada para “ativar” cada permissão uma a uma — o caso de uso já as inclui.
-
-2. **Quem concede é o usuário**  
-   As permissões são concedidas **no momento do login**: quando a pessoa clica em **Conectar Conta** no seu app, é redirecionada para o Facebook, que mostra uma tela pedindo acesso às páginas e ao Instagram (incluindo publicar conteúdo). Ao clicar em **Continuar** / **Permitir**, a Meta associa essas permissões ao token do seu app.
-
-3. **Onde conferir no painel (opcional)**  
-   No menu à esquerda: **Revisão do app** (App Review) → **Permissões e recursos** (Permissions and Features). Lá aparecem as permissões que o app pode solicitar e o status (acesso padrão em desenvolvimento ou acesso avançado após revisão). Em **modo de desenvolvimento**, apenas administradores, desenvolvedores e usuários de teste do app conseguem fazer o login e conceder as permissões.
-
-4. **Produção**  
-   Para usuários que não são admin/dev/testador, é preciso **Publicar** o app e, para algumas permissões, passar pela **Revisão do app** da Meta.
+**Requisito:** a conta Instagram deve ser **Business ou Creator** (conta profissional). Não é necessário ter Página do Facebook vinculada.
 
 ---
 
-## 4. Configurar o `.env` no projeto (frontend)
+## 4. `.env` no projeto (frontend)
 
-1. Na raiz do projeto (pasta onde está o `package.json`), abra ou crie o arquivo **`.env`**.
-2. Adicione a linha com o **ID do app** (não use a chave secreta aqui):
+1. Na raiz do projeto, abra ou crie o arquivo **`.env`**.
+2. Adicione (use apenas o **ID do app**; não coloque a chave secreta aqui):
 
    ```env
    VITE_META_APP_ID=SEU_APP_ID_AQUI
    ```
 
-   Exemplo (com número fictício):
+   Exemplo (número fictício):
 
    ```env
    VITE_META_APP_ID=1234567890123456
    ```
 
-3. Salve o arquivo e **reinicie o servidor** se ele estiver rodando:
+3. Salve e reinicie o servidor se estiver rodando:
 
    ```bash
    npm run dev
@@ -107,106 +78,91 @@ O nosso código já envia essas permissões na URL de login (`src/lib/metaOAuth.
 
 ---
 
-## 5. URIs de redirecionamento no app Meta (revisão)
+## 5. Secrets e Edge Function no Supabase
 
-No app **PHD** → **Facebook Login** → **Configurações**:
+A troca do `code` por token usa a **chave secreta** do app e só pode rodar no servidor (Edge Function).
 
-- Confirme que está salvo exatamente:
-  - `http://localhost:5173/accounts/connect/callback` (para desenvolvimento)
-- A URL deve ser **igual** à que o navegador usa ao voltar da Meta (mesmo protocolo, domínio e caminho). Sem barra no final.
-
----
-
-## 6. Configurar secrets e publicar a Edge Function no Supabase
-
-A troca do `code` por token usa a **chave secreta** do app. Isso só pode rodar no servidor (Edge Function), nunca no frontend.
-
-1. Abra o terminal na raiz do projeto.
-2. Faça login no Supabase (se ainda não fez):
+1. No terminal, na raiz do projeto:
 
    ```bash
    npx supabase login
-   ```
-
-3. Vincule o projeto (substitua pelo ID do seu projeto no Supabase):
-
-   ```bash
    npx supabase link --project-ref SEU_PROJECT_REF
    ```
 
    O **Project Ref** está em: Supabase Dashboard → Project Settings → General → **Reference ID**.
 
-4. Defina os secrets da Edge Function (use o **ID do app** e a **chave secreta** do app PHD):
+2. Defina os secrets (use o **ID do app** e a **chave secreta** do app Meta):
 
    ```bash
    npx supabase secrets set META_APP_ID=SEU_APP_ID META_APP_SECRET=SUA_CHAVE_SECRETA
    ```
 
-   Exemplo (valores fictícios):
+3. Faça o deploy das Edge Functions **instagram-connect**, **publish-reel** e **publish-scheduled** (agendados):
 
    ```bash
-   npx supabase secrets set META_APP_ID=1234567890123456 META_APP_SECRET=abc123def456...
+   npx supabase functions deploy instagram-connect
+   npx supabase functions deploy publish-reel
+   npx supabase functions deploy publish-scheduled
    ```
 
-5. Faça o deploy da função `meta-connect`:
+4. **(Opcional)** Para o cron publicar posts no horário, defina o secret e configure um cron que chame a função:
 
    ```bash
-   npx supabase functions deploy meta-connect
+   npx supabase secrets set CRON_SECRET=uma_senha_forte_aqui
    ```
 
-6. Se aparecer erro de região ou projeto, confira o `project_id` em `supabase/config.toml` e o `supabase link`.
+   Depois, no Supabase Dashboard → **Database** → **Cron Jobs** (ou via SQL com `pg_cron`), agende uma chamada HTTP periódica (ex.: a cada 5 minutos) para a URL da função `publish-scheduled`, com o header `x-cron-secret: uma_senha_forte_aqui`. A URL está em **Edge Functions** → **publish-scheduled** → **Invoke URL**.
 
 ---
 
-## 7. Testar a conexão no app
+## 6. Testar a conexão
 
-1. Com o `.env` configurado e o servidor rodando (`npm run dev`), acesse o app e faça **login** (Supabase).
-2. Vá em **Contas** (ou **Contas Instagram**).
-3. Clique em **Conectar Conta**.
-4. Você deve ser redirecionado para o login da **Meta/Facebook**.
-5. Faça login e autorize o app **PHD** (permissões de páginas e Instagram).
-6. Ao terminar, a Meta redireciona de volta para:
-   `http://localhost:5173/accounts/connect/callback?code=...&state=...`
-7. O frontend chama a Edge Function com esse `code`; a função troca por token, busca páginas e contas Instagram e grava em `instagram_accounts`.
-8. Você deve voltar para **Contas** e ver a(s) conta(s) Instagram listada(s).
+1. Com o `.env` configurado e o servidor rodando (`npm run dev`), faça **login** no app (Supabase).
+2. Vá em **Contas**.
+3. Clique em **Conectar Instagram**.
+4. Você será redirecionado para a tela de permissões do **Instagram** (não do Facebook).
+5. Autorize o app. Ao terminar, volta para o app em **Contas** com a conta listada.
 
-**Requisito:** a conta Instagram precisa ser **Business ou Creator** e estar **vinculada a uma Página do Facebook** que você administra. Se não tiver página vinculada, a Meta não retorna conta Instagram e a função pode responder “No Facebook Pages found” ou similar.
+**Erro "Não foi possível se conectar ao Instagram" no localhost**
 
----
-
-## 8. Modo de desenvolvimento vs publicação
-
-- Em **modo de desenvolvimento**, só contas que são **administradores, desenvolvedores ou testadores** do app **PHD** conseguem usar o login.
-- Para qualquer usuário usar em produção, é preciso **Publicar** o app e, para algumas permissões, passar pela **Revisão do app** (e, se pedido, “Tornar-se um Provedor de Tecnologia” e verificação de acesso).
-
-Para testar agora, use uma conta Facebook que seja **admin/dev/tester** do app PHD e uma conta Instagram Business/Creator ligada a uma página dessa conta.
+- Confira se a **Redirect URI** está **exatamente** igual no Meta (Instagram → Set up business login → OAuth redirect URIs). O app usa a origem atual (ex.: `http://localhost:5173`). A URL exata aparece na tela Contas (embaixo do botão).
+- Se o Vite usar outra porta (ex.: 5174), adicione também `http://localhost:5174/accounts/connect/instagram/callback` no Meta.
+- O código já envia `hl=en` na URL para evitar bug na tela em português. Se ainda falhar, teste em janela anônima ou com o navegador em inglês.
+- Em **modo de desenvolvimento** no Meta, só contas que são **admin, desenvolvedor ou testador** do app conseguem concluir o login.
 
 ---
 
-## 9. Deploy na Vercel (produção)
+## 7. Modo de desenvolvimento vs produção
 
-No deploy, o **Vite** usa as variáveis de ambiente **no momento do build**. O `.env` da sua máquina **não** vai para a Vercel — é preciso definir as variáveis no projeto Vercel.
+- Em **modo de desenvolvimento**, apenas administradores, desenvolvedores e testadores do app no Meta conseguem usar o login.
+- Para qualquer usuário em produção, é preciso **Publicar** o app e, para algumas permissões, passar pela **Revisão do app** da Meta.
+
+---
+
+## 8. Deploy na Vercel (produção)
+
+O Vite usa as variáveis de ambiente **no momento do build**. O `.env` local não vai para a Vercel.
 
 **Opção A – Script (recomendado)**  
-Com o `.env` na raiz já preenchido (incluindo `VITE_META_APP_ID`), rode:
+Com o `.env` na raiz preenchido (incluindo `VITE_META_APP_ID`):
 
 ```bash
 npm run vercel:env
 ```
 
-Isso envia `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` e `VITE_META_APP_ID` para o projeto Vercel vinculado. Depois faça um novo deploy (no painel: **Deployments** → **…** → **Redeploy**, ou `npx vercel --prod`).
+Depois faça um novo deploy (Redeploy no painel ou `npx vercel --prod`).
 
-**Opção B – Manual no painel**  
-1. Vercel Dashboard → seu projeto → **Settings** → **Environment Variables**.  
-2. Adicione `VITE_META_APP_ID` com o valor do seu App ID da Meta.  
+**Opção B – Manual**  
+1. Vercel Dashboard → projeto → **Settings** → **Environment Variables**.  
+2. Adicione `VITE_META_APP_ID` com o valor do App ID da Meta.  
 3. Marque **Production** (e Preview se quiser).  
-4. Salve e faça **Redeploy** do último deployment.
+4. Salve e faça **Redeploy**.
 
-**URIs de redirecionamento em produção**  
-No app Meta → **Facebook Login** → **Configurações** → **URIs de redirecionamento OAuth válidos**, adicione a URL do seu domínio, por exemplo:
+**Redirect URI em produção**  
+No app Meta → **Instagram** → **Set up business login** → **OAuth redirect URIs**, adicione:
 
 ```
-https://seu-dominio.vercel.app/accounts/connect/callback
+https://seu-dominio.vercel.app/accounts/connect/instagram/callback
 ```
 
 ---
@@ -216,11 +172,11 @@ https://seu-dominio.vercel.app/accounts/connect/callback
 | Onde | O que fazer |
 |------|-------------|
 | Meta – Configurações do app | Copiar **ID do app** e **Chave secreta** |
-| Meta – Facebook Login → Configurações | Adicionar `http://localhost:5173/...` e `https://SEU_DOMINIO/.../accounts/connect/callback` |
+| Meta – Instagram → Business login | Adicionar `http://localhost:5173/accounts/connect/instagram/callback` e a URL de produção |
 | Projeto – `.env` | `VITE_META_APP_ID=SEU_APP_ID` |
 | Terminal | `npx supabase secrets set META_APP_ID=... META_APP_SECRET=...` |
-| Terminal | `npx supabase functions deploy meta-connect` |
-| **Deploy Vercel** | `npm run vercel:env` ou adicionar `VITE_META_APP_ID` em Settings → Environment Variables e dar Redeploy |
-| Navegador | Login no app → Contas → Conectar Conta → autorizar no Facebook |
+| Terminal | `npx supabase functions deploy instagram-connect`, `publish-reel` e `publish-scheduled` |
+| Deploy Vercel | `npm run vercel:env` ou adicionar `VITE_META_APP_ID` e dar Redeploy |
+| Navegador | Login no app → Contas → Conectar Instagram → autorizar no Instagram |
 
-Se em algum passo aparecer uma mensagem de erro (Meta, Supabase ou no app), copie a mensagem e a etapa em que parou para podermos ajustar o próximo passo.
+Se aparecer erro em algum passo, anote a mensagem e a etapa para ajustar o próximo passo.

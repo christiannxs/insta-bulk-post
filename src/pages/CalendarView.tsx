@@ -21,16 +21,18 @@ import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 
 const statusColors: Record<string, string> = {
   pending: "bg-warning",
-  scheduled: "bg-warning",
+  publishing: "bg-warning",
   published: "bg-success",
-  error: "bg-destructive",
+  failed: "bg-destructive",
+  cancelled: "bg-muted",
 };
 
 const statusLabels: Record<string, string> = {
   pending: "Pendente",
-  scheduled: "Agendado",
+  publishing: "Publicando",
   published: "Publicado",
-  error: "Erro",
+  failed: "Erro",
+  cancelled: "Cancelado",
 };
 
 export default function CalendarView() {
@@ -158,7 +160,7 @@ export default function CalendarView() {
                         </p>
                       </div>
                     </div>
-                    <Badge variant={post.status === "published" ? "default" : post.status === "error" ? "destructive" : "secondary"}>
+                    <Badge variant={post.status === "published" ? "default" : post.status === "failed" ? "destructive" : "secondary"}>
                       {post.status === "pending" && post.scheduled_at ? "Agendado" : (statusLabels[post.status] ?? post.status)}
                     </Badge>
                   </div>

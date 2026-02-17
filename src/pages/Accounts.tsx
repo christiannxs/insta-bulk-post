@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PlusCircle, RefreshCw, Trash2, Instagram } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
-import { getMetaConnectUrl, isMetaConfigured } from "@/lib/metaOAuth";
+import { getInstagramConnectRedirectUri, getInstagramConnectUrl, isInstagramLoginConfigured } from "@/lib/instagramOAuth";
 
 export default function Accounts() {
   const { accounts, isLoading, removeAccount, isRemoving, refetch } = useInstagramAccounts();
@@ -28,22 +28,32 @@ export default function Accounts() {
     }
   }, [searchParams, setSearchParams, refetch, toast]);
 
-  const handleConnect = () => {
-    if (!isMetaConfigured()) {
+  const handleConnectInstagram = () => {
+    if (!isInstagramLoginConfigured()) {
       toast({
-        title: "Meta não configurada",
-        description: "Adicione VITE_META_APP_ID no .env (e META_APP_SECRET no Supabase para a Edge Function).",
+        title: "App não configurado",
+        description: "Adicione VITE_META_APP_ID no .env e configure Instagram API with Instagram Login no app Meta.",
         variant: "destructive",
       });
       return;
     }
-    const url = getMetaConnectUrl();
+    const url = getInstagramConnectUrl();
     if (url) window.location.href = url;
-    else toast({ title: "Erro", description: "Não foi possível abrir o login da Meta.", variant: "destructive" });
+    else toast({ title: "Erro", description: "Não foi possível abrir as permissões do Instagram.", variant: "destructive" });
   };
 
-  const handleReconnect = (username: string) => {
-    toast({ title: "Reconectar", description: `Reconectando @${username}...` });
+  const handleReconnect = () => {
+    if (!isInstagramLoginConfigured()) {
+      toast({
+        title: "App não configurado",
+        description: "Adicione VITE_META_APP_ID no .env e configure Instagram API with Instagram Login no app Meta.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const url = getInstagramConnectUrl();
+    if (url) window.location.href = url;
+    else toast({ title: "Erro", description: "Não foi possível abrir as permissões do Instagram.", variant: "destructive" });
   };
 
   const handleRemove = async (id: string) => {
@@ -76,9 +86,9 @@ export default function Accounts() {
           <h1 className="text-2xl font-bold">Contas Instagram</h1>
           <p className="text-muted-foreground">Gerencie suas contas conectadas</p>
         </div>
-        <Button onClick={handleConnect}>
+        <Button onClick={handleConnectInstagram} variant="default">
           <PlusCircle className="mr-2 h-4 w-4" />
-          Conectar Conta
+          Conectar Instagram
         </Button>
       </div>
 
@@ -88,6 +98,10 @@ export default function Accounts() {
             <Instagram className="mb-3 h-10 w-10 text-muted-foreground" />
             <p className="text-muted-foreground">Nenhuma conta conectada ainda.</p>
             <p className="text-sm text-muted-foreground">Conecte sua primeira conta Instagram para começar.</p>
+            <p className="mt-3 max-w-md text-center text-xs text-muted-foreground">
+              Se aparecer &quot;Não foi possível se conectar&quot; no Instagram, confira no app Meta (Instagram → Set up business login → OAuth redirect URIs) se esta URL está cadastrada:{" "}
+              <code className="break-all rounded bg-muted px-1 py-0.5 font-mono text-[10px]">{getInstagramConnectRedirectUri()}</code>
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -117,7 +131,7 @@ export default function Accounts() {
                   <p className="text-xs text-muted-foreground">Instagram Business/Creator</p>
                   <div className="flex gap-2">
                     {!isActive(account.status) && (
-                      <Button size="sm" variant="outline" onClick={() => handleReconnect(account.username)}>
+                      <Button size="sm" variant="outline" onClick={handleReconnect}>
                         <RefreshCw className="mr-1 h-3 w-3" />
                         Reconectar
                       </Button>

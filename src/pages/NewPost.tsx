@@ -4,30 +4,34 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { FolderOpen, Film, Send, Clock, X, CheckCircle2 } from "lucide-react";
+import { Send, Clock, Film, FolderOpen, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
 import { useScheduledPosts } from "@/hooks/useScheduledPosts";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  isGoogleDriveConfigured,
+  getGoogleConnectUrl,
+  parseDriveLink,
+  buildDriveDownloadUrl,
+} from "@/lib/googleDrive";
 
-const mockVideos = [
-  { id: "v1", name: "promo_verao.mp4", size: "12.4 MB", duration: "0:30" },
-  { id: "v2", name: "treino_abs.mp4", size: "18.7 MB", duration: "0:45" },
-  { id: "v3", name: "receita_acai.mp4", size: "22.1 MB", duration: "1:00" },
-  { id: "v4", name: "look_dia.mp4", size: "9.8 MB", duration: "0:20" },
-  { id: "v5", name: "dica_skincare.mp4", size: "15.3 MB", duration: "0:35" },
-];
+export type DriveVideo = { id: string; name: string; mimeType?: string; size?: string; downloadUrl: string };
 
 export default function NewPost() {
   const { user } = useAuth();
   const { accounts, isLoading: accountsLoading } = useInstagramAccounts();
-  const { addPost, isAdding } = useScheduledPosts();
-  const [selectedVideos, setSelectedVideos] = useState<string[]>([]);
+  const { addPostWithLogs, isAdding, refetch } = useScheduledPosts();
   const [caption, setCaption] = useState("");
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [scheduleDate, setScheduleDate] = useState("");
-  const [showDrivePicker, setShowDrivePicker] = useState(false);
+  const [driveLink, setDriveLink] = useState("");
+  const [driveVideos, setDriveVideos] = useState<DriveVideo[]>([]);
+  const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
+  const [isLoadingDrive, setIsLoadingDrive] = useState(false);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [isPublishing, setIsPublishing] = useState(false);
   const hasInitializedAccounts = useRef(false);
   const { toast } = useToast();
 
@@ -39,43 +43,198 @@ export default function NewPost() {
     if (accounts.length === 0) hasInitializedAccounts.current = false;
   }, [accounts]);
 
-  const toggleVideo = (id: string) => {
-    setSelectedVideos((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
-  };
-
   const toggleAccount = (id: string) => {
     setSelectedAccounts((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
   };
 
-  const handlePublish = () => {
-    toast({ title: "Em breve", description: "A publicação será implementada com a integração da Meta API." });
+  const toggleVideo = (id: string) => {
+    setSelectedVideoIds((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
+  };
+
+  const selectAllVideos = () => {
+    setSelectedVideoIds(driveVideos.map((v) => v.id));
+  };
+  const clearVideos = () => setSelectedVideoIds([]);
+
+  const handleLoadDriveVideos = async () => {
+    const parsed = parseDriveLink(driveLink);
+    if (!parsed) {
+      toast({
+        title: "Link inválido",
+        description: "Cole o link de uma pasta ou de um vídeo do Google Drive.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!isGoogleDriveConfigured()) {
+      toast({
+        title: "Google não configurado",
+        description: "Adicione VITE_GOOGLE_CLIENT_ID no .env e configure o app no Google Cloud Console.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      toast({ title: "Faça login", variant: "destructive" });
+      return;
+    }
+    setIsLoadingDrive(true);
+    try {
+      const body = parsed.type === "folder" ? { folder_id: parsed.id } : { file_id: parsed.id };
+      const { data, error } = await supabase.functions.invoke("drive-list", {
+        body,
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (error) throw new Error(error.message);
+      const err = (data as { error?: string })?.error;
+      if (err) throw new Error(err);
+      const files = (data as { files?: Array<{ id: string; name: string; mimeType?: string; size?: string }>; download_base?: string }).files ?? [];
+      const base = (data as { download_base?: string }).download_base ?? "https://drive.google.com/uc?export=download&id=";
+      const videos: DriveVideo[] = files.map((f) => ({
+        id: f.id,
+        name: f.name,
+        mimeType: f.mimeType,
+        size: f.size,
+        downloadUrl: base + f.id,
+      }));
+      setDriveVideos(videos);
+      setSelectedVideoIds(videos.map((v) => v.id));
+      if (videos.length === 0) {
+        toast({ title: "Nenhum vídeo", description: "A pasta ou o arquivo não contém vídeos." });
+      } else {
+        toast({ title: "Vídeos carregados", description: `${videos.length} vídeo(s) encontrado(s).` });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Erro ao carregar";
+      toast({ title: "Erro no Drive", description: msg, variant: "destructive" });
+      if (msg.includes("Conecte sua conta Google")) {
+        const url = getGoogleConnectUrl();
+        if (url) window.location.href = url;
+      }
+    } finally {
+      setIsLoadingDrive(false);
+    }
+  };
+
+  const handleConnectGoogle = () => {
+    if (!isGoogleDriveConfigured()) {
+      toast({
+        title: "Google não configurado",
+        description: "Adicione VITE_GOOGLE_CLIENT_ID no .env.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const url = getGoogleConnectUrl();
+    if (url) window.location.href = url;
+    else toast({ title: "Erro", description: "Não foi possível abrir o Google.", variant: "destructive" });
+  };
+
+  const getEffectiveVideoList = (): { url: string; name: string }[] => {
+    if (driveVideos.length > 0 && selectedVideoIds.length > 0) {
+      return driveVideos
+        .filter((v) => selectedVideoIds.includes(v.id))
+        .map((v) => ({ url: v.downloadUrl, name: v.name }));
+    }
+    const url = videoUrl.trim();
+    if (url) return [{ url, name: "Vídeo" }];
+    return [];
+  };
+
+  const handlePublish = async () => {
+    const list = getEffectiveVideoList();
+    if (list.length === 0) {
+      toast({
+        title: "Nenhum vídeo",
+        description: "Carregue vídeos do Drive ou informe a URL do vídeo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (selectedAccounts.length === 0) {
+      toast({ title: "Selecione ao menos uma conta", variant: "destructive" });
+      return;
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      toast({ title: "Faça login novamente", variant: "destructive" });
+      return;
+    }
+    setIsPublishing(true);
+    let ok = 0;
+    let fail = 0;
+    for (const { url, name } of list) {
+      for (const accountId of selectedAccounts) {
+        try {
+          const { data, error } = await supabase.functions.invoke("publish-reel", {
+            body: { account_id: accountId, video_url: url, caption: caption || null },
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          });
+          if (error) throw new Error(error.message);
+          const err = (data as { error?: string })?.error;
+          if (err) throw new Error(err);
+          ok++;
+        } catch (e) {
+          fail++;
+          toast({ title: `Falha: ${name}`, description: e instanceof Error ? e.message : "Erro", variant: "destructive" });
+        }
+      }
+    }
+    setIsPublishing(false);
+    if (ok > 0) {
+      toast({
+        title: "Publicado",
+        description: fail > 0 ? `${ok} publicação(s). ${fail} falha(s).` : `${ok} publicação(s) concluída(s).`,
+      });
+      setDriveVideos([]);
+      setSelectedVideoIds([]);
+      setVideoUrl("");
+      setCaption("");
+    }
+    refetch();
   };
 
   const handleSchedule = async () => {
     if (!user?.id) return;
-    if (!scheduleDate) {
-      toast({ title: "Selecione uma data", variant: "destructive" });
-      return;
-    }
-    if (selectedVideos.length === 0) {
-      toast({ title: "Selecione ao menos um vídeo", variant: "destructive" });
-      return;
-    }
-    const videoName = mockVideos.find((v) => v.id === selectedVideos[0])?.name ?? "Vídeo";
-    const videoUrl = "https://placeholder.local/" + (selectedVideos[0] ?? "pending");
-    try {
-      await addPost({
-        user_id: user.id,
-        video_url: videoUrl,
-        video_name: videoName,
-        caption: caption || null,
-        scheduled_at: new Date(scheduleDate).toISOString(),
-        status: "pending",
+    const list = getEffectiveVideoList();
+    if (list.length === 0) {
+      toast({
+        title: "Nenhum vídeo",
+        description: "Carregue vídeos do Drive ou informe a URL do vídeo.",
+        variant: "destructive",
       });
-      toast({ title: "Agendado!", description: `Post agendado para ${new Date(scheduleDate).toLocaleString("pt-BR")}.` });
+      return;
+    }
+    if (!scheduleDate) {
+      toast({ title: "Selecione data e hora", variant: "destructive" });
+      return;
+    }
+    if (selectedAccounts.length === 0) {
+      toast({ title: "Selecione ao menos uma conta", variant: "destructive" });
+      return;
+    }
+    try {
+      const scheduledAt = new Date(scheduleDate).toISOString();
+      for (const { url, name } of list) {
+        await addPostWithLogs({
+          user_id: user.id,
+          video_url: url,
+          video_name: name,
+          caption: caption || null,
+          scheduled_at: scheduledAt,
+          account_ids: selectedAccounts,
+        });
+      }
+      toast({
+        title: "Agendado!",
+        description: `${list.length} post(s) para ${new Date(scheduleDate).toLocaleString("pt-BR")}.`,
+      });
+      setDriveVideos([]);
+      setSelectedVideoIds([]);
+      setVideoUrl("");
       setCaption("");
       setScheduleDate("");
-      setSelectedVideos([]);
     } catch (e: unknown) {
       toast({
         title: "Erro ao agendar",
@@ -85,7 +244,9 @@ export default function NewPost() {
     }
   };
 
-  const canSubmit = selectedVideos.length > 0 && selectedAccounts.length > 0;
+  const effectiveList = getEffectiveVideoList();
+  const canPublish = effectiveList.length > 0 && selectedAccounts.length > 0;
+  const canSchedule = effectiveList.length > 0 && scheduleDate.length > 0 && selectedAccounts.length > 0;
   const isLoading = accountsLoading;
 
   if (isLoading) {
@@ -100,64 +261,119 @@ export default function NewPost() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Novo Post</h1>
-        <p className="text-muted-foreground">Selecione vídeos do Google Drive e publique em massa</p>
+        <p className="text-muted-foreground">
+          Cole o link de uma pasta ou vídeo do Google Drive para carregar os vídeos e publicar ou agendar
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Vídeos Selecionados</CardTitle>
-              <Button variant="outline" size="sm" onClick={() => setShowDrivePicker(!showDrivePicker)}>
-                <FolderOpen className="mr-2 h-4 w-4" />
-                Abrir Google Drive
-              </Button>
+              <CardTitle className="text-base flex items-center gap-2">
+                <FolderOpen className="h-4 w-4" />
+                Google Drive
+              </CardTitle>
+              {isGoogleDriveConfigured() && (
+                <Button variant="outline" size="sm" onClick={handleConnectGoogle}>
+                  Conectar Google
+                </Button>
+              )}
             </CardHeader>
-            <CardContent>
-              {showDrivePicker ? (
-                <div className="space-y-2">
-                  {mockVideos.map((video) => {
-                    const isSelected = selectedVideos.includes(video.id);
-                    return (
-                      <div
-                        key={video.id}
-                        onClick={() => toggleVideo(video.id)}
-                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
-                          isSelected ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
-                        }`}
-                      >
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                          <Film className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{video.name}</p>
-                          <p className="text-xs text-muted-foreground">{video.size} • {video.duration}</p>
-                        </div>
-                        {isSelected && <CheckCircle2 className="h-5 w-5 text-primary" />}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : selectedVideos.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {selectedVideos.map((id) => {
-                    const video = mockVideos.find((v) => v.id === id);
-                    return (
-                      <Badge key={id} variant="secondary" className="gap-1 py-1.5 pl-3 pr-2">
-                        <Film className="h-3 w-3" />
-                        {video?.name}
-                        <button type="button" onClick={() => toggleVideo(id)} className="ml-1 rounded-full hover:bg-muted">
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  Clique em "Abrir Google Drive" para selecionar vídeos.
+            <CardContent className="space-y-3">
+              {!isGoogleDriveConfigured() && (
+                <p className="text-sm text-muted-foreground">
+                  Configure <code className="text-xs bg-muted px-1 rounded">VITE_GOOGLE_CLIENT_ID</code> no .env e no Google Cloud Console (Drive API, tela de consentimento, URI de redirecionamento).
                 </p>
               )}
+              <Input
+                type="url"
+                placeholder="https://drive.google.com/drive/folders/... ou link de um vídeo"
+                value={driveLink}
+                onChange={(e) => setDriveLink(e.target.value)}
+                className="font-mono text-sm"
+              />
+              <Button
+                onClick={handleLoadDriveVideos}
+                disabled={isLoadingDrive || !driveLink.trim()}
+                className="w-full sm:w-auto"
+              >
+                {isLoadingDrive ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Carregando...
+                  </>
+                ) : (
+                  "Carregar vídeos"
+                )}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Cole o link da pasta (com os vídeos) ou de um vídeo. Os vídeos precisam estar compartilhados com &quot;Qualquer pessoa com o link&quot; para a Meta conseguir publicar.
+              </p>
+            </CardContent>
+          </Card>
+
+          {driveVideos.length > 0 && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">Vídeos ({driveVideos.length})</CardTitle>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={selectAllVideos}>
+                    Selecionar todos
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={clearVideos}>
+                    Limpar
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {driveVideos.map((v) => (
+                    <label
+                      key={v.id}
+                      className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                        selectedVideoIds.includes(v.id) ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={selectedVideoIds.includes(v.id)}
+                        onCheckedChange={() => toggleVideo(v.id)}
+                      />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                        <Film className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{v.name}</p>
+                        {v.size && (
+                          <p className="text-xs text-muted-foreground">
+                            {Number(v.size) > 1024 * 1024
+                              ? `${(Number(v.size) / 1024 / 1024).toFixed(1)} MB`
+                              : `${(Number(v.size) / 1024).toFixed(0)} KB`}
+                          </p>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Ou use uma URL direta</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Input
+                type="url"
+                placeholder="https://exemplo.com/video.mp4"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                className="font-mono text-sm"
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                Se preferir, informe uma URL pública do vídeo (sem usar o Drive).
+              </p>
             </CardContent>
           </Card>
 
@@ -215,16 +431,16 @@ export default function NewPost() {
           <div className="flex flex-col gap-3">
             <Button
               onClick={handlePublish}
-              disabled={!canSubmit}
+              disabled={!canPublish || isPublishing}
               className="w-full"
             >
               <Send className="mr-2 h-4 w-4" />
-              Publicar Agora
+              {isPublishing ? "Publicando..." : "Publicar Agora"}
             </Button>
             <Button
               variant="outline"
               onClick={handleSchedule}
-              disabled={!canSubmit || isAdding}
+              disabled={!canSchedule || isAdding}
               className="w-full"
             >
               <Clock className="mr-2 h-4 w-4" />
@@ -234,7 +450,8 @@ export default function NewPost() {
 
           <div className="rounded-lg bg-muted/50 p-3">
             <p className="text-xs text-muted-foreground">
-              <strong>Resumo:</strong> {selectedVideos.length} vídeo(s) → {selectedAccounts.length} conta(s)
+              <strong>Resumo:</strong> {selectedAccounts.length} conta(s)
+              {effectiveList.length > 0 ? ` · ${effectiveList.length} vídeo(s)` : " · Carregue vídeos do Drive ou use URL"}
             </p>
           </div>
         </div>

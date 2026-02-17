@@ -3,10 +3,11 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   fetchScheduledPosts,
   insertScheduledPost,
+  insertScheduledPostWithLogs,
   deleteScheduledPost,
   fetchPublishLogsByPostIds,
 } from "@/lib/supabase/posts";
-import type { ScheduledPostInsert } from "@/lib/supabase/posts";
+import type { ScheduledPostInsert, ScheduledPostWithLogsInsert } from "@/lib/supabase/posts";
 
 export function useScheduledPosts() {
   const { user } = useAuth();
@@ -25,6 +26,13 @@ export function useScheduledPosts() {
     },
   });
 
+  const insertWithLogsMutation = useMutation({
+    mutationFn: insertScheduledPostWithLogs,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scheduled_posts", user?.id] });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: deleteScheduledPost,
     onSuccess: () => {
@@ -38,11 +46,14 @@ export function useScheduledPosts() {
     error: query.error,
     refetch: query.refetch,
     addPost: insertMutation.mutateAsync,
-    isAdding: insertMutation.isPending,
+    addPostWithLogs: insertWithLogsMutation.mutateAsync,
+    isAdding: insertMutation.isPending || insertWithLogsMutation.isPending,
     removePost: deleteMutation.mutateAsync,
     isRemoving: deleteMutation.isPending,
   };
 }
+
+export type { ScheduledPostWithLogsInsert };
 
 export function usePostPublishLogs(postIds: string[]) {
   const query = useQuery({

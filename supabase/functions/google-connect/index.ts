@@ -1,0 +1,87 @@
+// Edge Function: troca code do Google OAuth por tokens e salva em google_tokens.
+// Requer: GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET nos secrets do Supabase.
+// Redirect URI no Google Cloud Console deve bater com a origem do app (ex.: http://localhost:5173/new-post/drive/callback).
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  const json = (data: unknown, status: number) =>
+    new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return json({ error: "Missing or invalid Authorization header" }, 401);
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const token = authHeader.slice(7);
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user?.id) {
+      return json({ error: "Sessão inválida ou expirada" }, 401);
+    }
+
+    const clientId = Deno.env.get("GOOGLE_CLIENT_ID");
+    const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
+    if (!clientId || !clientSecret) {
+      return json({ error: "Google OAuth não configurado (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)" }, 500);
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const { code, redirect_uri } = body as { code?: string; redirect_uri?: string };
+    if (!code || !redirect_uri) {
+      return json({ error: "Faltam code ou redirect_uri" }, 400);
+    }
+
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri,
+        grant_type: "authorization_code",
+      }).toString(),
+    });
+    const tokenData = await tokenRes.json();
+    if (tokenData.error) {
+      return json({ error: tokenData.error_description ?? tokenData.error ?? "Falha ao trocar code por token" }, 400);
+    }
+
+    const accessToken = tokenData.access_token;
+    const refreshToken = tokenData.refresh_token ?? null;
+    const expiresIn = tokenData.expires_in ?? 3600;
+    const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+
+    const { error: upsertErr } = await supabase.from("google_tokens").upsert(
+      {
+        user_id: user.id,
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_at: expiresAt,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
+    if (upsertErr) {
+      return json({ error: upsertErr.message }, 400);
+    }
+
+    return json({ success: true });
+  } catch (e) {
+    return json({ error: e instanceof Error ? e.message : "Erro inesperado" }, 500);
+  }
+});

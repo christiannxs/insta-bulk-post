@@ -8,9 +8,10 @@ import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   pending: { label: "Pendente", variant: "secondary" },
-  scheduled: { label: "Agendado", variant: "secondary" },
+  publishing: { label: "Publicando", variant: "secondary" },
   published: { label: "Publicado", variant: "default" },
-  error: { label: "Erro", variant: "destructive" },
+  failed: { label: "Erro", variant: "destructive" },
+  cancelled: { label: "Cancelado", variant: "secondary" },
 };
 
 export default function Dashboard() {
@@ -19,9 +20,9 @@ export default function Dashboard() {
 
   const isLoading = accountsLoading || postsLoading;
   const expiredAccounts = accounts.filter((a) => a.status === "expired");
-  const scheduledCount = posts.filter((p) => p.status === "pending" || p.status === "scheduled").length;
+  const scheduledCount = posts.filter((p) => p.status === "pending" || p.status === "publishing").length;
   const publishedCount = posts.filter((p) => p.status === "published").length;
-  const errorCount = posts.filter((p) => p.status === "error").length;
+  const errorCount = posts.filter((p) => p.status === "failed" || p.status === "cancelled").length;
 
   const stats = [
     { label: "Contas Conectadas", value: accounts.length.toString(), icon: Users, color: "text-primary" },

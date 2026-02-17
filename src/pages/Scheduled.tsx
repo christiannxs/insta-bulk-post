@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,21 +8,32 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useScheduledPosts } from "@/hooks/useScheduledPosts";
+import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
+import {
+  fetchPublishLogsByPostIds,
+  updateScheduledPostStatus,
+  updatePublishLog,
+  insertPublishLogsForPost,
+} from "@/lib/supabase/posts";
+import { supabase } from "@/integrations/supabase/client";
 
 const statusConfig: Record<string, { label: string; icon: typeof Clock; variant: "default" | "secondary" | "destructive" }> = {
   pending: { label: "Pendente", icon: Clock, variant: "secondary" },
-  scheduled: { label: "Agendado", icon: Clock, variant: "secondary" },
+  publishing: { label: "Publicando", icon: Clock, variant: "secondary" },
   published: { label: "Publicado", icon: CheckCircle, variant: "default" },
-  error: { label: "Erro", icon: AlertTriangle, variant: "destructive" },
+  failed: { label: "Erro", icon: AlertTriangle, variant: "destructive" },
+  cancelled: { label: "Cancelado", icon: AlertTriangle, variant: "secondary" },
 };
 
 export default function Scheduled() {
-  const { posts, isLoading, removePost, isRemoving } = useScheduledPosts();
+  const { posts, isLoading, removePost, isRemoving, refetch } = useScheduledPosts();
+  const { accounts } = useInstagramAccounts();
   const { toast } = useToast();
+  const [publishingPostId, setPublishingPostId] = useState<string | null>(null);
 
-  const pending = posts.filter((p) => p.status === "pending" || p.status === "scheduled");
+  const pending = posts.filter((p) => p.status === "pending" || p.status === "publishing");
   const published = posts.filter((p) => p.status === "published");
-  const errors = posts.filter((p) => p.status === "error");
+  const errors = posts.filter((p) => p.status === "failed" || p.status === "cancelled");
 
   const handleDelete = async (id: string) => {
     try {
@@ -36,8 +48,74 @@ export default function Scheduled() {
     }
   };
 
-  const handlePublishNow = (id: string) => {
-    toast({ title: "Em breve", description: "A publicação imediata será implementada com a Meta API." });
+  const handlePublishNow = async (postId: string) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post || !post.video_url?.trim()) {
+      toast({ title: "Erro", description: "Post sem URL de vídeo. Edite o post ou remova-o.", variant: "destructive" });
+      return;
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      toast({ title: "Faça login novamente", variant: "destructive" });
+      return;
+    }
+    setPublishingPostId(postId);
+    try {
+      let logs = await fetchPublishLogsByPostIds([postId]);
+      if (logs.length === 0 && accounts.length > 0) {
+        await insertPublishLogsForPost(postId, accounts.map((a) => a.id));
+        logs = await fetchPublishLogsByPostIds([postId]);
+      }
+      if (logs.length === 0) {
+        toast({ title: "Nenhuma conta", description: "Selecione contas no Novo Post e agende de novo, ou adicione logs.", variant: "destructive" });
+        setPublishingPostId(null);
+        return;
+      }
+      await updateScheduledPostStatus(postId, "publishing");
+      let ok = 0;
+      let fail = 0;
+      for (const log of logs) {
+        try {
+          const { data, error } = await supabase.functions.invoke("publish-reel", {
+            body: {
+              account_id: log.account_id,
+              video_url: post.video_url.trim(),
+              caption: post.caption || null,
+            },
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          });
+          if (error) throw new Error(error.message);
+          const err = (data as { error?: string })?.error;
+          if (err) throw new Error(err);
+          const mediaId = (data as { media_id?: string })?.media_id ?? null;
+          await updatePublishLog(log.id, {
+            status: "published",
+            ig_media_id: mediaId,
+            published_at: new Date().toISOString(),
+          });
+          ok++;
+        } catch (e) {
+          fail++;
+          await updatePublishLog(log.id, {
+            status: "failed",
+            error_message: e instanceof Error ? e.message : "Erro ao publicar",
+          });
+          toast({ title: "Falha em uma conta", description: e instanceof Error ? e.message : "Erro", variant: "destructive" });
+        }
+      }
+      await updateScheduledPostStatus(postId, fail === logs.length ? "failed" : "published");
+      toast({
+        title: "Publicação concluída",
+        description: fail === 0 ? `Publicado em ${ok} conta(s).` : `${ok} publicada(s), ${fail} falha(s).`,
+      });
+      refetch();
+    } catch (e) {
+      toast({ title: "Erro", description: e instanceof Error ? e.message : "Erro inesperado.", variant: "destructive" });
+      await updateScheduledPostStatus(postId, "failed").catch(() => {});
+      refetch();
+    } finally {
+      setPublishingPostId(null);
+    }
   };
 
   const renderPostList = (list: typeof posts) => {
@@ -51,6 +129,7 @@ export default function Scheduled() {
           const config = statusConfig[post.status] ?? statusConfig.pending;
           const scheduledAt = post.scheduled_at ? new Date(post.scheduled_at) : null;
           const label = post.status === "pending" && post.scheduled_at ? "Agendado" : config.label;
+          const isPendingOrScheduled = post.status === "pending" || post.status === "publishing";
           return (
             <div key={post.id} className="flex items-center justify-between rounded-lg border border-border p-4">
               <div className="flex items-center gap-3">
@@ -67,9 +146,9 @@ export default function Scheduled() {
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant={config.variant}>{label}</Badge>
-                {(post.status === "pending" || post.status === "scheduled") && (
+                {isPendingOrScheduled && (
                   <>
-                    <Button size="sm" variant="ghost" onClick={() => handlePublishNow(post.id)}>
+                    <Button size="sm" variant="ghost" onClick={() => handlePublishNow(post.id)} disabled={post.status === "publishing" || publishingPostId === post.id}>
                       <Play className="h-3.5 w-3.5" />
                     </Button>
                     <Button
@@ -83,7 +162,7 @@ export default function Scheduled() {
                     </Button>
                   </>
                 )}
-                {post.status === "error" && (
+                {post.status === "failed" && (
                   <Button size="sm" variant="outline" onClick={() => handlePublishNow(post.id)}>
                     Tentar novamente
                   </Button>

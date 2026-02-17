@@ -12,7 +12,8 @@ import CalendarView from "@/pages/CalendarView";
 import Scheduled from "@/pages/Scheduled";
 import NotFound from "@/pages/NotFound";
 import LoginPage from "@/pages/LoginPage";
-import MetaConnectCallback from "@/pages/MetaConnectCallback";
+import InstagramConnectCallback from "@/pages/InstagramConnectCallback";
+import GoogleDriveCallback from "@/pages/GoogleDriveCallback";
 
 const queryClient = new QueryClient();
 
@@ -33,7 +34,8 @@ const App = () => (
           >
             <Route path="/" element={<Dashboard />} />
             <Route path="/accounts" element={<Accounts />} />
-            <Route path="/accounts/connect/callback" element={<MetaConnectCallback />} />
+            <Route path="/accounts/connect/instagram/callback" element={<InstagramConnectCallback />} />
+            <Route path="/new-post/drive/callback" element={<GoogleDriveCallback />} />
             <Route path="/new-post" element={<NewPost />} />
             <Route path="/calendar" element={<CalendarView />} />
             <Route path="/scheduled" element={<Scheduled />} />

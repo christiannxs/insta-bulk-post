@@ -1,5 +1,5 @@
 #!/bin/bash
-# Configura os secrets da Meta no Supabase para a Edge Function meta-connect.
+# Configura os secrets da Meta no Supabase para a Edge Function instagram-connect (conexão direta Instagram).
 # Use: ./scripts/setup-meta-secrets.sh
 #
 # Você precisa do App ID e App Secret do app Meta (developers.facebook.com).
@@ -24,4 +24,4 @@ fi
 npx supabase secrets set META_APP_ID="$META_APP_ID" META_APP_SECRET="$META_APP_SECRET"
 echo ""
 echo "Secrets configurados. Faça o deploy da Edge Function:"
-echo "  npx supabase functions deploy meta-connect"
+echo "  npx supabase functions deploy instagram-connect"

@@ -1,22 +1,22 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { getMetaConnectRedirectUri, metaStateMatches } from "@/lib/metaOAuth";
+import { getInstagramConnectRedirectUri, instagramStateMatches } from "@/lib/instagramOAuth";
 
-export default function MetaConnectCallback() {
+export default function InstagramConnectCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
-  const [message, setMessage] = useState("Conectando à Meta...");
+  const [message, setMessage] = useState("Conectando ao Instagram...");
 
   useEffect(() => {
     let cancelled = false;
 
     const code = searchParams.get("code");
     const state = searchParams.get("state");
-    const errorFromMeta = searchParams.get("error");
+    const errorFromIg = searchParams.get("error");
 
-    if (errorFromMeta) {
+    if (errorFromIg) {
       const desc = searchParams.get("error_description") ?? "Acesso negado ou cancelado.";
       setStatus("error");
       setMessage(desc);
@@ -24,7 +24,7 @@ export default function MetaConnectCallback() {
       return () => clearTimeout(t);
     }
 
-    if (!code || !state || !metaStateMatches(state)) {
+    if (!code || !state || !instagramStateMatches(state)) {
       setStatus("error");
       setMessage("Link inválido ou expirado. Tente conectar novamente.");
       const t = setTimeout(() => !cancelled && navigate("/accounts?error=invalid_callback", { replace: true }), 2500);
@@ -42,8 +42,8 @@ export default function MetaConnectCallback() {
           return;
         }
 
-        const { data, error } = await supabase.functions.invoke("meta-connect", {
-          body: { code, redirect_uri: getMetaConnectRedirectUri() },
+        const { data, error } = await supabase.functions.invoke("instagram-connect", {
+          body: { code, redirect_uri: getInstagramConnectRedirectUri() },
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
 
@@ -56,9 +56,12 @@ export default function MetaConnectCallback() {
         }
 
         const added = (data as { added?: number })?.added ?? 0;
+        const updated = (data as { updated?: boolean })?.updated ?? false;
         setStatus("ok");
-        setMessage(added > 0 ? `Conta(s) conectada(s): ${added}. Redirecionando...` : "Nenhuma conta nova. Redirecionando...");
-        navigate("/accounts?connected=" + (added > 0 ? "1" : "0"), { replace: true });
+        if (added > 0) setMessage("Conta conectada. Redirecionando...");
+        else if (updated) setMessage("Conta atualizada. Redirecionando...");
+        else setMessage("Redirecionando...");
+        navigate("/accounts?connected=" + (added > 0 || updated ? "1" : "0"), { replace: true });
       } catch (e) {
         if (cancelled) return;
         setStatus("error");

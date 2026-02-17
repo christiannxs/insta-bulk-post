@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Lê o .env local e envia variáveis de build para o projeto Vercel vinculado:
- * VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY, VITE_META_APP_ID.
+ * VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY, VITE_META_APP_ID, VITE_GOOGLE_CLIENT_ID.
  *
  * Uso: node scripts/sync-env-to-vercel.mjs
  * ou:  npm run vercel:env
@@ -91,6 +91,17 @@ function runVercelEnvAdd(name, value, env = "production") {
     }
   } else {
     console.log("  ⊘ VITE_META_APP_ID não está no .env (opcional para conectar Instagram)");
+  }
+  const googleClientId = (vars.VITE_GOOGLE_CLIENT_ID || "").trim();
+  if (googleClientId) {
+    try {
+      await runVercelEnvAdd("VITE_GOOGLE_CLIENT_ID", googleClientId);
+      console.log("  ✓ VITE_GOOGLE_CLIENT_ID");
+    } catch (e) {
+      console.error("  ✗ VITE_GOOGLE_CLIENT_ID:", e.message);
+    }
+  } else {
+    console.log("  ⊘ VITE_GOOGLE_CLIENT_ID não está no .env (opcional para link do Drive)");
   }
   console.log("\nVariáveis configuradas. Faça um novo deploy para aplicar:");
   console.log("  npx vercel --prod");
