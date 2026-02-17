@@ -109,10 +109,14 @@ npx supabase secrets set GOOGLE_CLIENT_ID=SEU_CLIENT_ID GOOGLE_CLIENT_SECRET=SUA
 
 ## 3. Deploy das Edge Functions
 
+O deploy das Edge Functions é feito **no Supabase** (não via GitHub/Vercel). Use sempre a flag `--no-verify-jwt` na função `google-connect` para evitar erro "Sessão expirada ou inválida" ao voltar da autorização do Google (o JWT é validado dentro da função).
+
 ```bash
-npx supabase functions deploy google-connect
+npx supabase functions deploy google-connect --no-verify-jwt
 npx supabase functions deploy drive-list
 ```
+
+Se o projeto for remoto: `npx supabase login` e `npx supabase link --project-ref SEU_PROJECT_ID` antes, se ainda não tiver linkado.
 
 ---
 
@@ -135,11 +139,23 @@ Links apenas para "Pessoas específicas" ou só para você não funcionam na pub
 
 ## 6. Erro "Sessão expirada ou inválida" ao conectar o Google
 
-Se, ao voltar da tela de autorização do Google, aparecer **"Sessão expirada ou inválida. Faça login novamente e tente conectar o Google."**:
+Se, ao voltar da tela de autorização do Google, aparecer **"Sessão expirada ou inválida. Faça login no app (ou logout e login de novo) e tente conectar o Google outra vez."**:
 
-1. **Faça logout e login de novo** no app e tente conectar o Google Drive outra vez.
-2. Use **uma única aba**: abra o app, clique em Conectar Google na mesma aba; evite abrir o link do Google em outra aba ou janela, para a sessão não se perder.
-3. Se o erro continuar, no Supabase Dashboard verifique se a Edge Function `google-connect` está com os secrets corretos (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) e se o projeto usa a mesma configuração de JWT do frontend.
+1. **Deploy com `--no-verify-jwt`** (causa mais comum): o gateway do Supabase pode rejeitar o JWT antes da sua função rodar. Faça o deploy da função assim:
+   ```bash
+   npx supabase functions deploy google-connect --no-verify-jwt
+   ```
+   A função continua segura: ela valida o token internamente com `getUser(token)`. Depois teste de novo (login → Conectar Google → autorizar e voltar).
+
+2. **Faça logout e login de novo** no app e tente conectar o Google Drive outra vez.
+
+3. **Use uma única aba**: abra o app, clique em Conectar Google na mesma aba; evite abrir o link do Google em outra aba ou janela, para a sessão não se perder.
+
+4. **Mesmo projeto**: confira que o frontend (`.env`: `VITE_SUPABASE_URL` e chave anon) e a Edge Function `google-connect` usam o **mesmo** projeto Supabase. No Dashboard, veja o project ref e a URL do projeto.
+
+5. **Diagnóstico**: no Supabase Dashboard → Edge Functions → Logs da `google-connect`. Se no horário do erro **não houver nenhuma execução**, o 401 veio do gateway → use o passo 1. Se a função foi invocada e ainda assim 401, o log mostrará o motivo (ex.: "jwt expired", "invalid signature").
+
+6. **Secrets**: verifique se a função está com os secrets corretos (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`).
 
 ---
 
@@ -150,7 +166,7 @@ Se ao colar o link do Drive e clicar em **Carregar vídeos** aparecer **"Erro no
 1. **Conecte o Google antes**: clique em **Conectar Google** na tela Novo Post, autorize o app no Google e só depois cole o link e clique em Carregar vídeos.
 2. **Confirme que as Edge Functions estão publicadas** no mesmo projeto Supabase que o app usa:
    ```bash
-   npx supabase functions deploy google-connect
+   npx supabase functions deploy google-connect --no-verify-jwt
    npx supabase functions deploy drive-list
    ```
 3. **Confira o `.env`**: `VITE_SUPABASE_URL` deve ser a URL do projeto (ex.: `https://SEU_PROJECT_ID.supabase.co`).
@@ -165,5 +181,5 @@ Se ao colar o link do Drive e clicar em **Carregar vídeos** aparecer **"Erro no
 | Google Cloud | Ativar Drive API, tela de consentimento, credenciais OAuth (Web), redirect URI |
 | `.env` | `VITE_GOOGLE_CLIENT_ID=...` |
 | Supabase secrets | `GOOGLE_CLIENT_ID=...` e `GOOGLE_CLIENT_SECRET=...` |
-| Terminal | `npx supabase functions deploy google-connect` e `drive-list` |
+| Terminal | `npx supabase functions deploy google-connect --no-verify-jwt` e `drive-list` |
 | App | Novo Post → Conectar Google → colar link → Carregar vídeos → publicar/agendar |

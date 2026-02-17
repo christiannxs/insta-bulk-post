@@ -26,6 +26,7 @@ Deno.serve(async (req) => {
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user?.id) {
+      console.error("[google-connect] getUser failed:", userError?.message ?? (user ? "no user id" : "no user"));
       return json({ error: "Sessão inválida ou expirada" }, 401);
     }
 

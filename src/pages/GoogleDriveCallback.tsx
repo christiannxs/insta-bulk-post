@@ -96,11 +96,14 @@ export default function GoogleDriveCallback() {
 
         if (!res.ok) {
           setStatus("error");
+          const fallback401 =
+            "Sessão expirada ou inválida. Faça login no app (ou logout e login de novo) e tente conectar o Google outra vez. Se o erro continuar, o deploy da função pode precisar ser feito com --no-verify-jwt; veja docs/GOOGLE_DRIVE_SETUP.md.";
           const fallback =
             res.status === 401
-              ? "Sessão expirada ou inválida. Faça login no app (ou logout e login de novo) e tente conectar o Google outra vez."
+              ? fallback401
               : `Erro ${res.status}. Verifique os logs da Edge Function.`;
-          setMessage(errMsg ?? fallback);
+          const finalMessage = errMsg ?? fallback;
+          setMessage(finalMessage);
           setTimeout(() => !cancelled && navigate(res.status === 401 ? "/login" : "/new-post", { replace: true }), 2500);
           return;
         }
