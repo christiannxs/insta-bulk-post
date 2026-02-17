@@ -10,7 +10,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
 import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 import { supabase } from "@/integrations/supabase/client";
-import { FunctionsHttpError } from "@supabase/supabase-js";
 import {
   isGoogleDriveConfigured,
   getGoogleConnectUrl,
@@ -82,29 +81,32 @@ export default function NewPost() {
     }
     setIsLoadingDrive(true);
     try {
-      const body = parsed.type === "folder" ? { folder_id: parsed.id } : { file_id: parsed.id };
-      const { data, error } = await supabase.functions.invoke("drive-list", {
-        body,
-        headers: { Authorization: `Bearer ${session.access_token}` },
+      const reqBody = parsed.type === "folder" ? { folder_id: parsed.id } : { file_id: parsed.id };
+      const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim();
+      const anonKey = String(
+        import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ""
+      ).trim();
+      const res = await fetch(`${supabaseUrl}/functions/v1/drive-list`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: anonKey,
+        },
+        body: JSON.stringify(reqBody),
       });
-      const err = (data as { error?: string } | null)?.error;
-      if (error) {
-        // Em 4xx/5xx o body vem em error.context (Response); data fica null
-        let msg = err ?? error.message ?? "Erro ao chamar o Drive.";
-        if (error instanceof FunctionsHttpError && error.context) {
-          try {
-            const res = error.context as Response;
-            const body = await res.clone().json().catch(() => null) as { error?: string } | null;
-            if (body && typeof body.error === "string") msg = body.error;
-          } catch {
-            // body já consumido ou não é JSON
-          }
-        }
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        files?: Array<{ id: string; name: string; mimeType?: string; size?: string }>;
+        download_base?: string;
+      };
+      if (!res.ok) {
+        const msg = data?.error ?? `Erro ${res.status} ao chamar o Drive.`;
         throw new Error(msg);
       }
-      if (err) throw new Error(err);
-      const files = (data as { files?: Array<{ id: string; name: string; mimeType?: string; size?: string }>; download_base?: string }).files ?? [];
-      const base = (data as { download_base?: string }).download_base ?? "https://drive.google.com/uc?export=download&id=";
+      if (data?.error) throw new Error(data.error);
+      const files = data.files ?? [];
+      const base = data.download_base ?? "https://drive.google.com/uc?export=download&id=";
       const videos: DriveVideo[] = files.map((f) => ({
         id: f.id,
         name: f.name,
@@ -122,12 +124,14 @@ export default function NewPost() {
     } catch (e) {
       console.error("Erro ao carregar Drive:", e);
       const msg = e instanceof Error ? e.message : "Erro ao carregar";
-      const isNetworkOrInvoke =
-        msg.includes("Failed to send a request to the Edge Function") ||
-        msg.includes("Edge Function returned a non-2xx");
+      const isNetwork =
+        msg.includes("Failed to fetch") ||
+        msg.includes("Failed to send a request") ||
+        msg.includes("NetworkError") ||
+        msg.includes("Load failed");
       const checklist =
         "Confira: 1) Conecte o Google (botão «Conectar Google») antes de carregar; 2) Edge Function drive-list publicada (npx supabase functions deploy drive-list); 3) .env com VITE_SUPABASE_URL correta.";
-      const description = isNetworkOrInvoke ? `${msg}\n\n${checklist}` : msg;
+      const description = isNetwork ? `${msg}\n\n${checklist}` : msg;
       toast({
         title: "Erro no Drive",
         description,
