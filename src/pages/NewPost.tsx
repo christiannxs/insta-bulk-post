@@ -86,8 +86,11 @@ export default function NewPost() {
         body,
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
-      if (error) throw new Error(error.message);
-      const err = (data as { error?: string })?.error;
+      const err = (data as { error?: string } | null)?.error;
+      if (error) {
+        // Quando a Edge Function retorna 4xx/5xx, o Supabase pode enviar a mensagem em data.error
+        throw new Error(err ?? error.message ?? "Erro ao chamar o Drive.");
+      }
       if (err) throw new Error(err);
       const files = (data as { files?: Array<{ id: string; name: string; mimeType?: string; size?: string }>; download_base?: string }).files ?? [];
       const base = (data as { download_base?: string }).download_base ?? "https://drive.google.com/uc?export=download&id=";
@@ -107,15 +110,18 @@ export default function NewPost() {
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro ao carregar";
-      const isEdgeFunctionError = msg.includes("Failed to send a request to the Edge Function");
+      const isNetworkOrInvoke =
+        msg.includes("Failed to send a request to the Edge Function") ||
+        msg.includes("Edge Function returned a non-2xx");
+      const description = isNetworkOrInvoke
+        ? "Confira: 1) Conecte o Google (botão «Conectar Google») antes de carregar; 2) Edge Function drive-list publicada (npx supabase functions deploy drive-list); 3) .env com VITE_SUPABASE_URL correta."
+        : msg;
       toast({
         title: "Erro no Drive",
-        description: isEdgeFunctionError
-          ? "Não foi possível chamar a função do Drive. Confira se a Edge Function drive-list está publicada no Supabase (npx supabase functions deploy drive-list) e se a URL do projeto no .env está correta."
-          : msg,
+        description,
         variant: "destructive",
       });
-      if (msg.includes("Conecte sua conta Google")) {
+      if (msg.includes("Conecte sua conta Google") || msg.includes("Conecte o Google")) {
         const url = getGoogleConnectUrl();
         if (url) window.location.href = url;
       }

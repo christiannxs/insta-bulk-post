@@ -31,8 +31,8 @@ export default function GoogleDriveCallback() {
 
     (async () => {
       try {
-        // Pequena pausa para o cliente Supabase hidratar a sessão do localStorage após o redirect
-        await new Promise((r) => setTimeout(r, 100));
+        // Pausa para o Supabase hidratar a sessão do localStorage após o redirect do Google
+        await new Promise((r) => setTimeout(r, 400));
 
         const doRequest = async (): Promise<Response> => {
           const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
@@ -73,10 +73,10 @@ export default function GoogleDriveCallback() {
           setStatus("error");
           const fallback =
             res.status === 401
-              ? "Sessão expirada ou inválida. Faça login novamente e tente conectar o Google."
+              ? "Sessão expirada ou inválida. Faça login no app (ou logout e login de novo) e tente conectar o Google outra vez."
               : `Erro ${res.status}. Verifique os logs da Edge Function.`;
           setMessage(errMsg ?? fallback);
-          setTimeout(() => !cancelled && navigate("/new-post", { replace: true }), 2500);
+          setTimeout(() => !cancelled && navigate(res.status === 401 ? "/login" : "/new-post", { replace: true }), 2500);
           return;
         }
         if (errMsg) {

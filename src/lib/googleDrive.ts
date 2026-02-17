@@ -53,9 +53,8 @@ export type ParsedDriveLink = { type: "folder"; id: string } | { type: "file"; i
 /**
  * Extrai folder_id ou file_id de um link do Google Drive.
  * Suporta:
- * - Pasta: https://drive.google.com/drive/folders/FOLDER_ID
- * - Arquivo: https://drive.google.com/file/d/FILE_ID/view
- * - Arquivo: https://drive.google.com/open?id=FILE_ID
+ * - Pasta: .../drive/folders/FOLDER_ID ou .../drive/u/0/folders/FOLDER_ID
+ * - Arquivo: .../file/d/FILE_ID/view ou .../open?id=FILE_ID
  */
 export function parseDriveLink(input: string): ParsedDriveLink | null {
   const trimmed = input.trim();
@@ -64,13 +63,13 @@ export function parseDriveLink(input: string): ParsedDriveLink | null {
     const url = new URL(trimmed);
     if (!url.hostname.includes("google.com")) return null;
     const path = url.pathname;
-    // Pasta: /drive/folders/ID
-    const folderMatch = path.match(/\/drive\/folders\/([a-zA-Z0-9_-]+)/);
+    // Pasta: /drive/folders/ID ou /drive/u/0/folders/ID
+    const folderMatch = path.match(/\/drive\/(?:u\/\d+\/)?folders\/([a-zA-Z0-9_-]+)/);
     if (folderMatch) return { type: "folder", id: folderMatch[1] };
-    // Arquivo: /file/d/ID/view ou /open
+    // Arquivo: /file/d/ID/...
     const fileMatch = path.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
     if (fileMatch) return { type: "file", id: fileMatch[1] };
-    // ?id=FILE_ID
+    // ?id=FILE_ID (comum em links de compartilhamento)
     const idParam = url.searchParams.get("id");
     if (idParam) return { type: "file", id: idParam };
     return null;
