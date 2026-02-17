@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
         String(raw).toLowerCase().includes("client") ||
         String(raw).toLowerCase().includes("not found");
       const friendly = isClientError
-        ? "Cliente OAuth não encontrado ou inválido. Confira no Supabase (secrets) se GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET estão corretos e no Google Cloud Console se o ID do cliente OAuth e a Redirect URI estão corretos."
+        ? "The OAuth client was not found. Confira: (1) No Google Cloud Console → Credenciais, o ID do cliente OAuth existe e é do tipo \"Aplicativo da Web\". (2) No Supabase → Settings → Edge Functions → Secrets: GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET são exatamente os mesmos desse cliente (mesmo ID no .env como VITE_GOOGLE_CLIENT_ID). (3) A Redirect URI no Console deve ser exatamente a URL de callback do app (ex.: https://seu-dominio.com/new-post/drive/callback). Veja docs/GOOGLE_DRIVE_SETUP.md."
         : raw;
       return json({ error: friendly }, 400);
     }

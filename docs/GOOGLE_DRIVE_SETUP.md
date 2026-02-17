@@ -159,6 +159,35 @@ Se, ao voltar da tela de autorização do Google, aparecer **"Sessão expirada o
 
 ---
 
+## 6.1 Erro "The OAuth client was not found"
+
+Se, ao voltar da tela de autorização do Google, aparecer **"The OAuth client was not found"** (ou "Cliente OAuth não encontrado"):
+
+1. **Google Cloud Console – cliente existe?**  
+   Acesse **https://console.cloud.google.com/apis/credentials**, selecione o projeto correto e confira se o **ID do cliente OAuth** que você está usando ainda existe. Se você criou outro projeto ou apagou o cliente, crie um novo (tipo **Aplicativo da Web**) e use o novo ID e a nova chave secreta em todo lugar.
+
+2. **Mesmo ID em todo lugar**  
+   O **mesmo** ID do cliente deve estar em:
+   - **Frontend**: `.env` → `VITE_GOOGLE_CLIENT_ID=...` (e em produção, nas variáveis de ambiente do Vercel).
+   - **Supabase**: Settings → Edge Functions → Secrets → `GOOGLE_CLIENT_ID=...` (exatamente o mesmo valor).  
+   Se um estiver com valor antigo ou de outro projeto, o Google devolve "OAuth client was not found".
+
+3. **Chave secreta no Supabase**  
+   Em **Supabase → Secrets**, defina também `GOOGLE_CLIENT_SECRET` com a **Chave secreta do cliente** do mesmo cliente OAuth (Credenciais → clique no nome do cliente → copiar chave secreta).  
+   Depois faça o deploy de novo:  
+   `npx supabase functions deploy google-connect --no-verify-jwt`
+
+4. **Redirect URI exata**  
+   No Google Cloud Console → Credenciais → seu cliente OAuth → **URIs de redirecionamento autorizados** deve conter **exatamente** a URL de callback do app, por exemplo:
+   - Local: `http://localhost:5173/new-post/drive/callback`
+   - Produção: `https://reelspro-eight.vercel.app/new-post/drive/callback`  
+   Sem barra no final e com o protocolo correto (https em produção).
+
+5. **Projeto correto no Console**  
+   No topo do Google Cloud Console, confirme que o projeto selecionado é o que tem o cliente OAuth que você está usando. Se você tiver vários projetos, é fácil estar no projeto errado.
+
+---
+
 ## 7. Erro "Failed to send a request" ou "Edge Function returned a non-2xx status code"
 
 Se ao colar o link do Drive e clicar em **Carregar vídeos** aparecer **"Erro no Drive"** com uma dessas mensagens:
