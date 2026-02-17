@@ -31,29 +31,38 @@ export default function GoogleDriveCallback() {
 
     (async () => {
       try {
-        // Atualiza a sessão antes de chamar a Edge Function (evita 401 ao voltar do redirect do Google)
-        const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
-        if (cancelled) return;
-        if (sessionError || !session?.access_token) {
-          setStatus("error");
-          setMessage("Sessão expirada. Faça login no app e tente conectar o Google novamente.");
-          setTimeout(() => !cancelled && navigate("/login", { replace: true }), 2500);
-          return;
-        }
+        // Pequena pausa para o cliente Supabase hidratar a sessão do localStorage após o redirect
+        await new Promise((r) => setTimeout(r, 100));
 
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? "";
-        const anonKey = (
-          import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ""
-        ).trim();
-        const res = await fetch(`${supabaseUrl}/functions/v1/google-connect`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-            apikey: anonKey,
-          },
-          body: JSON.stringify({ code, redirect_uri: getGoogleDriveRedirectUri() }),
-        });
+        const doRequest = async (): Promise<Response> => {
+          const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+          if (sessionError || !session?.access_token) {
+            throw new Error("NO_SESSION");
+          }
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? "";
+          const anonKey = (
+            import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ""
+          ).trim();
+          return fetch(`${supabaseUrl}/functions/v1/google-connect`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+              apikey: anonKey,
+            },
+            body: JSON.stringify({ code, redirect_uri: getGoogleDriveRedirectUri() }),
+          });
+        };
+
+        let res = await doRequest();
+        if (cancelled) return;
+
+        // Se 401, tenta uma vez mais após novo refresh (evita falha por timing após redirect)
+        if (res.status === 401) {
+          await new Promise((r) => setTimeout(r, 300));
+          if (cancelled) return;
+          res = await doRequest();
+        }
 
         if (cancelled) return;
 
@@ -82,8 +91,16 @@ export default function GoogleDriveCallback() {
       } catch (e) {
         if (cancelled) return;
         setStatus("error");
-        setMessage(e instanceof Error ? e.message : "Erro inesperado.");
-        setTimeout(() => !cancelled && navigate("/new-post", { replace: true }), 2500);
+        const isNoSession = e instanceof Error && e.message === "NO_SESSION";
+        setMessage(
+          isNoSession
+            ? "Sessão expirada. Faça login no app e tente conectar o Google novamente."
+            : e instanceof Error ? e.message : "Erro inesperado."
+        );
+        setTimeout(
+          () => !cancelled && navigate(isNoSession ? "/login" : "/new-post", { replace: true }),
+          2500
+        );
       }
     })();
 

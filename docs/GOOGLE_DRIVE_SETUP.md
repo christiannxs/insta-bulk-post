@@ -133,7 +133,17 @@ Links apenas para "Pessoas específicas" ou só para você não funcionam na pub
 
 ---
 
-## 6. Erro "Failed to send a request to the Edge Function"
+## 6. Erro "Sessão expirada ou inválida" ao conectar o Google
+
+Se, ao voltar da tela de autorização do Google, aparecer **"Sessão expirada ou inválida. Faça login novamente e tente conectar o Google."**:
+
+1. **Faça logout e login de novo** no app e tente conectar o Google Drive outra vez.
+2. Se usar **login com Google** no app, abra o app em uma aba só: evite abrir o link "Conectar Google" em outra aba ou janela, para a sessão não se perder.
+3. Se o erro continuar, no Supabase Dashboard verifique se a Edge Function `google-connect` está com os secrets corretos e se o projeto usa a mesma configuração de JWT do frontend.
+
+---
+
+## 7. Erro "Failed to send a request to the Edge Function"
 
 Se ao clicar em **Carregar vídeos** aparecer "Erro no Drive" com essa mensagem:
 
@@ -147,7 +157,7 @@ Se ao clicar em **Carregar vídeos** aparecer "Erro no Drive" com essa mensagem:
 
 ---
 
-## 7. Resumo rápido
+## 8. Resumo rápido
 
 | Onde | O que fazer |
 |------|-------------|
