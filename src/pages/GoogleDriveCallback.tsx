@@ -9,12 +9,17 @@ const SESSION_POLL_MS = 300;
 const MAX_401_RETRIES = 4;
 const RETRY_DELAYS_MS = [400, 800, 1600, 3200];
 
-/** Espera a sessão estar disponível após redirect (poll getSession + refresh), evita 401 por timing. */
+/** Espera a sessão estar disponível após redirect e devolve sempre sessão refresada (evita 401 por token expirado). */
 async function waitForSession(cancelled: () => boolean): Promise<Session | null> {
   const deadline = Date.now() + SESSION_WAIT_MS;
   while (Date.now() < deadline && !cancelled()) {
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) return session;
+    if (session?.access_token) {
+      const { data: { session: refreshed }, error } = await supabase.auth.refreshSession();
+      if (!cancelled() && !error && refreshed?.access_token) return refreshed;
+      if (!cancelled() && error) return null;
+      break;
+    }
     await new Promise((r) => setTimeout(r, SESSION_POLL_MS));
   }
   const { data: { session }, error } = await supabase.auth.refreshSession();
@@ -58,8 +63,8 @@ export default function GoogleDriveCallback() {
 
         const doRequest = async (): Promise<Response> => {
           const { data: { session: s }, error: sessionError } = await supabase.auth.refreshSession();
-          const token = (s?.access_token ?? session.access_token);
-          if (sessionError || !token) throw new Error("NO_SESSION");
+          if (sessionError || !s?.access_token) throw new Error("NO_SESSION");
+          const token = s.access_token;
           const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? "";
           const anonKey = (
             import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ""
