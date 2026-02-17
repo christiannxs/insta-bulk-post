@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { getGoogleDriveRedirectUri, googleStateMatches } from "@/lib/googleDrive";
 
@@ -46,15 +47,27 @@ export default function GoogleDriveCallback() {
         });
 
         if (cancelled) return;
+
+        let errMsg: string | undefined;
+        if (error instanceof FunctionsHttpError && error.context) {
+          try {
+            const body = await error.context.json() as { error?: string };
+            errMsg = body?.error;
+          } catch {
+            /* ignorar se não conseguir parsear */
+          }
+        }
+        errMsg ??= (data as { error?: string } | null)?.error;
+
         if (error) {
           setStatus("error");
-          setMessage(error.message ?? "Erro ao conectar.");
+          setMessage(errMsg ?? error.message ?? "Erro ao conectar.");
           setTimeout(() => !cancelled && navigate("/new-post", { replace: true }), 2500);
           return;
         }
-        if ((data as { error?: string })?.error) {
+        if (errMsg) {
           setStatus("error");
-          setMessage((data as { error: string }).error);
+          setMessage(errMsg);
           setTimeout(() => !cancelled && navigate("/new-post", { replace: true }), 2500);
           return;
         }
