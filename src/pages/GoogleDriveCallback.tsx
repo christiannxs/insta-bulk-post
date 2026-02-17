@@ -31,11 +31,12 @@ export default function GoogleDriveCallback() {
 
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // Atualiza a sessão antes de chamar a Edge Function (evita 401 ao voltar do redirect do Google)
+        const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
         if (cancelled) return;
-        if (!session?.access_token) {
+        if (sessionError || !session?.access_token) {
           setStatus("error");
-          setMessage("Faça login no app e tente conectar o Google novamente.");
+          setMessage("Sessão expirada. Faça login no app e tente conectar o Google novamente.");
           setTimeout(() => !cancelled && navigate("/login", { replace: true }), 2500);
           return;
         }
@@ -61,7 +62,11 @@ export default function GoogleDriveCallback() {
 
         if (!res.ok) {
           setStatus("error");
-          setMessage(errMsg ?? `Erro ${res.status}. Verifique os logs da Edge Function.`);
+          const fallback =
+            res.status === 401
+              ? "Sessão expirada ou inválida. Faça login novamente e tente conectar o Google."
+              : `Erro ${res.status}. Verifique os logs da Edge Function.`;
+          setMessage(errMsg ?? fallback);
           setTimeout(() => !cancelled && navigate("/new-post", { replace: true }), 2500);
           return;
         }
