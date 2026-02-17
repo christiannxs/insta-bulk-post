@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
 import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 import { supabase } from "@/integrations/supabase/client";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import {
   isGoogleDriveConfigured,
   getGoogleConnectUrl,
@@ -88,8 +89,17 @@ export default function NewPost() {
       });
       const err = (data as { error?: string } | null)?.error;
       if (error) {
-        // Quando a Edge Function retorna 4xx/5xx, o Supabase pode enviar a mensagem em data.error
-        throw new Error(err ?? error.message ?? "Erro ao chamar o Drive.");
+        // Em 4xx/5xx o body vem em error.context (Response); data fica null
+        let msg = err ?? error.message ?? "Erro ao chamar o Drive.";
+        if (error instanceof FunctionsHttpError && error.context) {
+          try {
+            const body = await (error.context as Response).json() as { error?: string };
+            if (typeof body?.error === "string") msg = body.error;
+          } catch {
+            // body já consumido ou não é JSON
+          }
+        }
+        throw new Error(msg);
       }
       if (err) throw new Error(err);
       const files = (data as { files?: Array<{ id: string; name: string; mimeType?: string; size?: string }>; download_base?: string }).files ?? [];
