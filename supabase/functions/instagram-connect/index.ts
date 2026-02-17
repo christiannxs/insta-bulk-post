@@ -98,8 +98,16 @@ Deno.serve(async (req) => {
     const tokenData: InstagramTokenResponse = await tokenRes.json();
 
     if (tokenData.error_message || tokenData.error_type) {
+      const raw = tokenData.error_message ?? "Failed to get access token";
+      const isClientError =
+        String(raw).toLowerCase().includes("client") ||
+        String(raw).toLowerCase().includes("not found") ||
+        tokenData.error_type === "OAuthException";
+      const friendly = isClientError
+        ? "App Instagram não encontrado ou inválido. Confira no Supabase (secrets) META_APP_ID e META_APP_SECRET e no app Meta se a Redirect URI está correta (Instagram → Set up business login → OAuth redirect URIs)."
+        : raw;
       return new Response(
-        JSON.stringify({ error: tokenData.error_message ?? "Failed to get access token" }),
+        JSON.stringify({ error: friendly }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

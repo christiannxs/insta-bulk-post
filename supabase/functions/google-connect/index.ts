@@ -55,7 +55,15 @@ Deno.serve(async (req) => {
     });
     const tokenData = await tokenRes.json();
     if (tokenData.error) {
-      return json({ error: tokenData.error_description ?? tokenData.error ?? "Falha ao trocar code por token" }, 400);
+      const raw = tokenData.error_description ?? tokenData.error ?? "Falha ao trocar code por token";
+      const isClientError =
+        tokenData.error === "invalid_client" ||
+        String(raw).toLowerCase().includes("client") ||
+        String(raw).toLowerCase().includes("not found");
+      const friendly = isClientError
+        ? "Cliente OAuth não encontrado ou inválido. Confira no Supabase (secrets) se GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET estão corretos e no Google Cloud Console se o ID do cliente OAuth e a Redirect URI estão corretos."
+        : raw;
+      return json({ error: friendly }, 400);
     }
 
     const accessToken = tokenData.access_token;

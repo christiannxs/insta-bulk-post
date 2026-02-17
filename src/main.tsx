@@ -38,9 +38,19 @@ const supabaseKey = String(
 const missingEnv = !supabaseUrl || !supabaseKey || !supabaseUrl.startsWith("https://");
 
 async function bootstrap() {
-  const rootEl = document.getElementById("root");
+  let rootEl = document.getElementById("root");
+  // Alguns deploys ou páginas de erro podem servir HTML sem #root; criar o elemento evita "root not found"
+  if (!rootEl && document.body) {
+    rootEl = document.createElement("div");
+    rootEl.id = "root";
+    rootEl.style.minHeight = "100vh";
+    document.body.appendChild(rootEl);
+  }
   if (!rootEl) {
-    showBootstrapError("Elemento #root não encontrado.");
+    document.write(
+      '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:system-ui;background:#0d0d0d;color:#e5e5e5;text-align:center;padding:1rem">' +
+        "<h1>Elemento #root não encontrado</h1></div>"
+    );
     return;
   }
   if (missingEnv) {
