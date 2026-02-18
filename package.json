@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "meta:secrets": "./scripts/setup-meta-secrets.sh"
+    "meta:secrets": "./scripts/setup-meta-secrets.sh",
+    "google:secrets": "node scripts/sync-google-secrets-to-supabase.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
