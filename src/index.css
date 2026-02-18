@@ -3,29 +3,30 @@
 @tailwind utilities;
 
 @layer base {
+  /* Tema baseado na logo: azul índigo (#2B4055), laranja (#FF8C00), roxo (#7D47A6) */
   :root {
-    --background: 0 0% 7%;
-    --foreground: 0 0% 98%;
+    --background: 211 32% 8%;
+    --foreground: 210 25% 95%;
 
-    --card: 0 0% 10%;
-    --card-foreground: 0 0% 98%;
+    --card: 211 28% 12%;
+    --card-foreground: 210 25% 95%;
 
-    --popover: 0 0% 10%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 211 28% 11%;
+    --popover-foreground: 210 25% 95%;
 
-    --primary: 0 72% 50%;
+    --primary: 33 100% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 211 30% 18%;
+    --secondary-foreground: 210 20% 95%;
 
-    --muted: 0 0% 18%;
-    --muted-foreground: 0 0% 60%;
+    --muted: 211 25% 20%;
+    --muted-foreground: 210 15% 58%;
 
-    --accent: 0 72% 50%;
+    --accent: 287 41% 35%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 45%;
+    --destructive: 9 100% 55%;
     --destructive-foreground: 0 0% 100%;
 
     --success: 142 71% 45%;
@@ -34,45 +35,45 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 0 72% 50%;
+    --border: 211 25% 20%;
+    --input: 211 25% 18%;
+    --ring: 33 100% 50%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 4%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 0 72% 50%;
+    --sidebar-background: 211 35% 6%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 33 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 50% 15%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 0 72% 50%;
+    --sidebar-accent: 211 30% 14%;
+    --sidebar-accent-foreground: 210 20% 95%;
+    --sidebar-border: 211 25% 16%;
+    --sidebar-ring: 33 100% 50%;
   }
 
   .dark {
-    --background: 0 0% 5%;
-    --foreground: 0 0% 95%;
+    --background: 211 35% 5%;
+    --foreground: 210 25% 93%;
 
-    --card: 0 0% 8%;
-    --card-foreground: 0 0% 95%;
+    --card: 211 30% 9%;
+    --card-foreground: 210 25% 93%;
 
-    --popover: 0 0% 8%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 211 30% 8%;
+    --popover-foreground: 210 25% 93%;
 
-    --primary: 0 72% 50%;
+    --primary: 33 100% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 95%;
+    --secondary: 211 28% 14%;
+    --secondary-foreground: 210 20% 93%;
 
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 55%;
+    --muted: 211 22% 16%;
+    --muted-foreground: 210 12% 52%;
 
-    --accent: 0 72% 45%;
+    --accent: 287 38% 32%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 42%;
+    --destructive: 9 100% 52%;
     --destructive-foreground: 0 0% 100%;
 
     --success: 142 71% 45%;
@@ -81,18 +82,18 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
-    --ring: 0 72% 50%;
+    --border: 211 22% 16%;
+    --input: 211 22% 15%;
+    --ring: 33 100% 50%;
 
-    --sidebar-background: 0 0% 3%;
-    --sidebar-foreground: 0 0% 88%;
-    --sidebar-primary: 0 72% 50%;
+    --sidebar-background: 211 38% 4%;
+    --sidebar-foreground: 210 18% 88%;
+    --sidebar-primary: 33 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 50% 12%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 0 0% 15%;
-    --sidebar-ring: 0 72% 50%;
+    --sidebar-accent: 211 28% 11%;
+    --sidebar-accent-foreground: 210 18% 93%;
+    --sidebar-border: 211 22% 13%;
+    --sidebar-ring: 33 100% 50%;
   }
 }
 
@@ -103,7 +104,7 @@
 
   html {
     min-height: 100%;
-    background-color: #0d0d0d;
+    background-color: #0f161e;
     background-color: hsl(var(--background));
   }
 
@@ -114,7 +115,7 @@
 
   #root {
     min-height: 100vh;
-    background-color: #0d0d0d;
+    background-color: #0f161e;
     background-color: hsl(var(--background));
   }
 }

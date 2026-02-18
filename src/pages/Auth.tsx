@@ -2,8 +2,7 @@ import { useState } from "react";
 import { supabase, isSupabaseConfigured, testSupabaseConnection } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Film } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Auth() {
@@ -98,14 +97,13 @@ export default function Auth() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <Film className="h-6 w-6 text-primary-foreground" />
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center h-[193px] pb-2">
+          <div className="mx-auto flex h-36 w-36 min-h-[128px] min-w-[128px] items-center justify-center rounded-xl overflow-hidden shrink-0">
+            <img src="/logo.png" alt="Perfis de Volume" className="h-full w-full object-contain" />
           </div>
-          <CardTitle className="text-xl">{isLogin ? "Entrar" : "Criar Conta"}</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           {!isSupabaseConfigured() && (
             <div className="mb-4 rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
               Supabase não configurado. Crie um arquivo <code className="rounded bg-muted px-1">.env</code> na raiz do projeto com{" "}

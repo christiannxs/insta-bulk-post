@@ -14,19 +14,19 @@ function showBootstrapError(message: string, detail?: unknown) {
       justify-content: center;
       padding: 1.5rem;
       font-family: system-ui, sans-serif;
-      background: #0d0d0d;
-      color: #e5e5e5;
+      background: #0f161e;
+      color: #e8ecf1;
       text-align: center;
     ">
       <h1 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">Não foi possível carregar o sistema</h1>
-      <p style="max-width: 28rem; margin-bottom: 1rem; color: #a3a3a3;">${message}</p>
-      <p style="font-size: 0.875rem; color: #737373;">
+      <p style="max-width: 28rem; margin-bottom: 1rem; color: #94a3b8;">${message}</p>
+      <p style="font-size: 0.875rem; color: #64748b;">
         Configure no painel do deploy (ex.: Vercel) as variáveis de ambiente:
-        <code style="background: #262626; padding: 0.125rem 0.375rem; border-radius: 0.25rem;">VITE_SUPABASE_URL</code> e
-        <code style="background: #262626; padding: 0.125rem 0.375rem; border-radius: 0.25rem;">VITE_SUPABASE_PUBLISHABLE_KEY</code>,
+        <code style="background: #1e293b; padding: 0.125rem 0.375rem; border-radius: 0.25rem;">VITE_SUPABASE_URL</code> e
+        <code style="background: #1e293b; padding: 0.125rem 0.375rem; border-radius: 0.25rem;">VITE_SUPABASE_PUBLISHABLE_KEY</code>,
         depois faça um novo deploy.
       </p>
-      ${detail ? `<pre style="font-size: 0.75rem; color: #525252; margin-top: 1rem; overflow: auto;">${String(detail)}</pre>` : ""}
+      ${detail ? `<pre style="font-size: 0.75rem; color: #475569; margin-top: 1rem; overflow: auto;">${String(detail)}</pre>` : ""}
     </div>
   `;
 }
@@ -48,7 +48,7 @@ async function bootstrap() {
   }
   if (!rootEl) {
     document.write(
-      '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:system-ui;background:#0d0d0d;color:#e5e5e5;text-align:center;padding:1rem">' +
+      '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:system-ui;background:#0f161e;color:#e8ecf1;text-align:center;padding:1rem">' +
         "<h1>Elemento #root não encontrado</h1></div>"
     );
     return;
