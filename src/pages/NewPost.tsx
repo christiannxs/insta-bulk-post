@@ -31,7 +31,6 @@ export default function NewPost() {
   const [driveVideos, setDriveVideos] = useState<DriveVideo[]>([]);
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([]);
   const [isLoadingDrive, setIsLoadingDrive] = useState(false);
-  const [videoUrl, setVideoUrl] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
   const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
   const hasInitializedAccounts = useRef(false);
@@ -222,8 +221,6 @@ export default function NewPost() {
         .filter((v) => selectedVideoIds.includes(v.id))
         .map((v) => ({ url: v.downloadUrl, name: v.name }));
     }
-    const url = videoUrl.trim();
-    if (url) return [{ url, name: "Vídeo" }];
     return [];
   };
 
@@ -232,7 +229,7 @@ export default function NewPost() {
     if (list.length === 0) {
       toast({
         title: "Nenhum vídeo",
-        description: "Carregue vídeos do Drive ou informe a URL do vídeo.",
+        description: "Carregue vídeos do Drive.",
         variant: "destructive",
       });
       return;
@@ -274,7 +271,6 @@ export default function NewPost() {
       });
       setDriveVideos([]);
       setSelectedVideoIds([]);
-      setVideoUrl("");
       setCaption("");
     }
     refetch();
@@ -286,7 +282,7 @@ export default function NewPost() {
     if (list.length === 0) {
       toast({
         title: "Nenhum vídeo",
-        description: "Carregue vídeos do Drive ou informe a URL do vídeo.",
+        description: "Carregue vídeos do Drive.",
         variant: "destructive",
       });
       return;
@@ -317,7 +313,6 @@ export default function NewPost() {
       });
       setDriveVideos([]);
       setSelectedVideoIds([]);
-      setVideoUrl("");
       setCaption("");
       setScheduleDate("");
     } catch (e: unknown) {
@@ -465,24 +460,6 @@ export default function NewPost() {
               </CardContent>
             </Card>
           )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Ou use uma URL direta</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Input
-                type="url"
-                placeholder="https://exemplo.com/video.mp4"
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                className="font-mono text-sm"
-              />
-              <p className="mt-2 text-xs text-muted-foreground">
-                Se preferir, informe uma URL pública do vídeo (sem usar o Drive).
-              </p>
-            </CardContent>
-          </Card>
 
           <Card>
             <CardHeader>

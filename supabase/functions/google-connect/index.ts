@@ -30,17 +30,22 @@ Deno.serve(async (req) => {
       return json({ error: "Sessão inválida ou expirada" }, 401);
     }
 
-    const clientId = Deno.env.get("GOOGLE_CLIENT_ID");
-    const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
+    const clientId = (Deno.env.get("GOOGLE_CLIENT_ID") ?? "").trim();
+    const clientSecret = (Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "").trim();
     if (!clientId || !clientSecret) {
       return json({ error: "Google OAuth não configurado (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)" }, 500);
     }
 
     const body = await req.json().catch(() => ({}));
-    const { code, redirect_uri } = body as { code?: string; redirect_uri?: string };
+    const { code, redirect_uri: rawRedirectUri } = body as { code?: string; redirect_uri?: string };
+    const redirect_uri = typeof rawRedirectUri === "string" ? rawRedirectUri.trim() : "";
     if (!code || !redirect_uri) {
       return json({ error: "Faltam code ou redirect_uri" }, 400);
     }
+
+    // Log para diagnóstico (sem expor o code); confira nos logs da Edge Function no Supabase
+    console.log("[google-connect] redirect_uri enviada ao Google:", redirect_uri);
+    console.log("[google-connect] client_id (primeiros 20 chars):", clientId.slice(0, 20) + "...");
 
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
@@ -56,6 +61,8 @@ Deno.serve(async (req) => {
     const tokenData = await tokenRes.json();
     if (tokenData.error) {
       const raw = tokenData.error_description ?? tokenData.error ?? "Falha ao trocar code por token";
+      const googleErrorCode = tokenData.error ?? "";
+      const googleErrorDesc = tokenData.error_description ?? "";
       const isClientError =
         tokenData.error === "invalid_client" ||
         String(raw).toLowerCase().includes("client") ||
@@ -63,7 +70,16 @@ Deno.serve(async (req) => {
       const friendly = isClientError
         ? "The OAuth client was not found. Confira: (1) No Google Cloud Console → Credenciais, o ID do cliente OAuth existe e é do tipo \"Aplicativo da Web\". (2) No Supabase → Settings → Edge Functions → Secrets: GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET são exatamente os mesmos desse cliente (mesmo ID no .env como VITE_GOOGLE_CLIENT_ID). (3) A Redirect URI no Console deve ser exatamente a URL de callback do app (ex.: https://seu-dominio.com/new-post/drive/callback). Veja docs/GOOGLE_DRIVE_SETUP.md."
         : raw;
-      return json({ error: friendly }, 400);
+      // Incluir erro real do Google para diagnóstico (ex.: redirect_uri_mismatch vs invalid_client)
+      return json(
+        {
+          error: friendly,
+          google_error: googleErrorCode,
+          google_error_description: googleErrorDesc,
+          redirect_uri_used: redirect_uri,
+        },
+        400
+      );
     }
 
     const accessToken = tokenData.access_token;

@@ -186,6 +186,12 @@ Se, ao voltar da tela de autorização do Google, aparecer **"The OAuth client w
 5. **Projeto correto no Console**  
    No topo do Google Cloud Console, confirme que o projeto selecionado é o que tem o cliente OAuth que você está usando. Se você tiver vários projetos, é fácil estar no projeto errado.
 
+6. **Usar o “Detalhe do Google” para diagnosticar**  
+   Depois de tentar conectar de novo, a mensagem de erro no app pode mostrar **“Detalhe do Google”** com o código e a descrição exatos que o Google devolveu:
+   - **`redirect_uri_mismatch`** → a URL de callback que o app enviou não está igual à que está nas “URIs de redirecionamento autorizados” no Console. Copie a **“Redirect URI usada”** que aparece no erro e adicione essa URL exata no Google Cloud Console (Credenciais → seu cliente → URIs de redirecionamento).
+   - **`invalid_client`** ou “OAuth client was not found” → em geral é ID do cliente ou chave secreta errados (ou de outro projeto). Confira que o ID nos secrets do Supabase é o mesmo do .env e do Console; confira que a chave secreta é a do mesmo cliente (e sem espaços/linhas extras ao colar).
+   Nos **logs da Edge Function** (Supabase → Edge Functions → google-connect → Logs) você também vê a `redirect_uri` que foi enviada ao Google e o início do `client_id`, para conferir com o que está configurado.
+
 ---
 
 ## 6.2 Erro "Erro 401 ao chamar o Drive"

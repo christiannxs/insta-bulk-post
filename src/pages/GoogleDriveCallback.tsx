@@ -91,8 +91,20 @@ export default function GoogleDriveCallback() {
 
         if (cancelled) return;
 
-        const body = (await res.json().catch(() => ({}))) as { error?: string; success?: boolean };
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          success?: boolean;
+          google_error?: string;
+          google_error_description?: string;
+          redirect_uri_used?: string;
+        };
         const errMsg = body?.error;
+
+        const detailParts: string[] = [];
+        if (body?.google_error) detailParts.push(`Código: ${body.google_error}`);
+        if (body?.google_error_description) detailParts.push(body.google_error_description);
+        if (body?.redirect_uri_used) detailParts.push(`Redirect URI usada: ${body.redirect_uri_used}`);
+        const googleDetail = detailParts.length > 0 ? "\n\nDetalhe do Google: " + detailParts.join(" — ") : "";
 
         if (!res.ok) {
           setStatus("error");
@@ -102,14 +114,14 @@ export default function GoogleDriveCallback() {
             res.status === 401
               ? fallback401
               : `Erro ${res.status}. Verifique os logs da Edge Function.`;
-          const finalMessage = errMsg ?? fallback;
+          const finalMessage = (errMsg ?? fallback) + googleDetail;
           setMessage(finalMessage);
           setTimeout(() => !cancelled && navigate(res.status === 401 ? "/login" : "/new-post", { replace: true }), 2500);
           return;
         }
         if (errMsg) {
           setStatus("error");
-          setMessage(errMsg);
+          setMessage(errMsg + googleDetail);
           setTimeout(() => !cancelled && navigate("/new-post", { replace: true }), 2500);
           return;
         }
