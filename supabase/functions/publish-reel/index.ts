@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
       success: true,
       media_id: publishData.id,
       username: account.username,
-    });
+    }, 200);
   } catch (e) {
     return json(
       { error: e instanceof Error ? e.message : "Erro inesperado" },

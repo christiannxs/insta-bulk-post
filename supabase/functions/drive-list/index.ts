@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
         return json({ error: listData.error.message ?? "Erro ao listar pasta" }, 400);
       }
       const files: DriveFile[] = listData.files ?? [];
-      return json({ files, download_base: "https://drive.google.com/uc?export=download&id=" });
+      return json({ files, download_base: "https://drive.google.com/uc?export=download&id=" }, 200);
     }
     if (file_id) {
       const fileRes = await fetch(
@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
         return json({ error: "O arquivo não é um vídeo." }, 400);
       }
       const files: DriveFile[] = [{ id: fileData.id, name: fileData.name, mimeType: fileData.mimeType, size: fileData.size }];
-      return json({ files, download_base: "https://drive.google.com/uc?export=download&id=" });
+      return json({ files, download_base: "https://drive.google.com/uc?export=download&id=" }, 200);
     }
     return json({ error: "Envie folder_id ou file_id no body." }, 400);
   } catch (e) {
