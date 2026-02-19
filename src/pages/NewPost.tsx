@@ -82,9 +82,10 @@ export default function NewPost() {
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [user?.id]);
 
-  // Ao voltar do callback do Google, refaz a verificação com vários retries (evita race com persistência no backend)
+  // Ao voltar do callback do Google: mostra "Conectado" de imediato e refaz a verificação com retries
   useEffect(() => {
     if (searchParams.get("google_connected") !== "1" || !user?.id || !isGoogleDriveConfigured()) return;
+    setGoogleConnected(true);
     const delays = [0, 400, 1200, 2500];
     const timeouts: ReturnType<typeof setTimeout>[] = [];
     delays.forEach((delay) => {
@@ -93,14 +94,13 @@ export default function NewPost() {
     });
     const clearParamTimer = setTimeout(() => setSearchParams({}, { replace: true }), 3000);
     timeouts.push(clearParamTimer);
-    // Após o último retry, se ainda não conectado, avisar o usuário
     const feedbackTimer = setTimeout(async () => {
       const connected = await fetchGoogleStatus();
       if (!connected) {
         toast({
           title: "Conexão com o Google",
           description:
-            "Não foi possível confirmar a conexão. Faça login de novo se necessário e clique em «Conectar Google» outra vez. Se o erro continuar, confira docs/GOOGLE_DRIVE_SETUP.md (deploy com --no-verify-jwt).",
+            "Não foi possível confirmar a conexão. Faça o deploy da Edge Function drive-status: npx supabase functions deploy drive-status. Depois faça login de novo se precisar e clique em «Conectar Google» outra vez. Veja docs/GOOGLE_DRIVE_SETUP.md.",
           variant: "destructive",
         });
       }

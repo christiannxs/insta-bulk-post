@@ -113,8 +113,11 @@ O deploy das Edge Functions é feito **no Supabase** (não via GitHub/Vercel). U
 
 ```bash
 npx supabase functions deploy google-connect --no-verify-jwt
+npx supabase functions deploy drive-status
 npx supabase functions deploy drive-list
 ```
+
+A função **drive-status** é usada pela tela "Novo Post" para exibir "Conectado ao Google" ou "Não conectado". Sem ela, após autorizar o Google você verá sempre "Não conectado" mesmo com o fluxo correto.
 
 Se o projeto for remoto: `npx supabase login` e `npx supabase link --project-ref SEU_PROJECT_ID` antes, se ainda não tiver linkado.
 
