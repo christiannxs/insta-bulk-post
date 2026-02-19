@@ -109,12 +109,12 @@ npx supabase secrets set GOOGLE_CLIENT_ID=SEU_CLIENT_ID GOOGLE_CLIENT_SECRET=SUA
 
 ## 3. Deploy das Edge Functions
 
-O deploy das Edge Functions é feito **no Supabase** (não via GitHub/Vercel). Use `--no-verify-jwt` em `google-connect` e em `drive-status` para evitar erro de sessão ao voltar da autorização do Google e ao confirmar o status (o JWT é validado dentro de cada função).
+O deploy das Edge Functions é feito **no Supabase** (não via GitHub/Vercel). Use `--no-verify-jwt` nas três funções para evitar erro de sessão (o JWT é validado dentro de cada função).
 
 ```bash
 npx supabase functions deploy google-connect --no-verify-jwt
 npx supabase functions deploy drive-status --no-verify-jwt
-npx supabase functions deploy drive-list
+npx supabase functions deploy drive-list --no-verify-jwt --no-verify-jwt
 ```
 
 A função **drive-status** é usada pela tela "Novo Post" para exibir "Conectado ao Google" ou "Não conectado". Sem ela, ou se o gateway rejeitar o JWT, pode aparecer o aviso "Não foi possível confirmar a conexão" — nesse caso faça o deploy com `--no-verify-jwt`: `npx supabase functions deploy drive-status --no-verify-jwt`.
@@ -210,7 +210,7 @@ Se ao colar o link do Drive e clicar em **Carregar vídeos** aparecer **"Erro no
 3. **Secrets da drive-list**  
    A Edge Function `drive-list` também usa `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` para renovar o access token do Drive. Confira em **Supabase → Settings → Edge Functions → Secrets** se os dois estão definidos e corretos. Depois:
    ```bash
-   npx supabase functions deploy drive-list
+   npx supabase functions deploy drive-list --no-verify-jwt
    ```
 
 4. **Conecte o Google antes de carregar**  
@@ -226,7 +226,7 @@ Se ao colar o link do Drive e clicar em **Carregar vídeos** aparecer **"Erro no
 2. **Confirme que as Edge Functions estão publicadas** no mesmo projeto Supabase que o app usa:
    ```bash
    npx supabase functions deploy google-connect --no-verify-jwt
-   npx supabase functions deploy drive-list
+   npx supabase functions deploy drive-list --no-verify-jwt
    ```
 3. **Confira o `.env`**: `VITE_SUPABASE_URL` deve ser a URL do projeto (ex.: `https://SEU_PROJECT_ID.supabase.co`).
 4. Se o projeto for **remoto** (Supabase na nuvem), faça login antes do deploy: `npx supabase login` e depois `npx supabase link --project-ref SEU_PROJECT_ID` na pasta do projeto.

@@ -175,7 +175,8 @@ export default function NewPost() {
       });
       return;
     }
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+    const session = refreshedSession ?? (await supabase.auth.getSession()).data.session;
     if (!session?.access_token) {
       toast({ title: "Faça login", variant: "destructive" });
       return;
