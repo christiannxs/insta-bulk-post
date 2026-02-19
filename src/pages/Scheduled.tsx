@@ -84,7 +84,19 @@ export default function Scheduled() {
             },
             headers: { Authorization: `Bearer ${session.access_token}` },
           });
-          if (error) throw new Error(error.message);
+          if (error) {
+            let msg = error.message;
+            const errWithCtx = error as { context?: { json(): Promise<{ error?: string }> } };
+            if (errWithCtx.context?.json) {
+              try {
+                const body = await errWithCtx.context.json();
+                if (body?.error) msg = body.error;
+              } catch {
+                /* usar error.message */
+              }
+            }
+            throw new Error(msg);
+          }
           const err = (data as { error?: string })?.error;
           if (err) throw new Error(err);
           const mediaId = (data as { media_id?: string })?.media_id ?? null;

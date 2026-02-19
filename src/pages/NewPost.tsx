@@ -313,9 +313,21 @@ export default function NewPost() {
             body: { account_id: accountId, video_url: url, caption: caption || null },
             headers: { Authorization: `Bearer ${session.access_token}` },
           });
-          if (error) throw new Error(error.message);
-          const err = (data as { error?: string })?.error;
-          if (err) throw new Error(err);
+          if (error) {
+            let msg = error.message;
+            const errWithCtx = error as { context?: { json(): Promise<{ error?: string }> } };
+            if (errWithCtx.context?.json) {
+              try {
+                const body = await errWithCtx.context.json();
+                if (body?.error) msg = body.error;
+              } catch {
+                /* usar error.message */
+              }
+            }
+            throw new Error(msg);
+          }
+          const bodyError = (data as { error?: string })?.error;
+          if (bodyError) throw new Error(bodyError);
           ok++;
         } catch (e) {
           fail++;

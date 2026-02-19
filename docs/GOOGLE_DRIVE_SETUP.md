@@ -220,7 +220,9 @@ Se ao colar o link do Drive e clicar em **Carregar vídeos** aparecer **"Erro no
 
 ## 7. Erro "Failed to send a request" ou "Edge Function returned a non-2xx status code"
 
-Se ao colar o link do Drive e clicar em **Carregar vídeos** aparecer **"Erro no Drive"** com uma dessas mensagens:
+O app agora exibe a **mensagem real** retornada pela Edge Function (ex.: "Conta inativa", "Sessão inválida", erro da API do Instagram). Se ainda aparecer só "Edge Function returned a non-2xx status code", veja os logs em **Supabase Dashboard → Edge Functions → publish-reel → Logs**.
+
+**Se o erro for ao carregar vídeos** (link do Drive):
 
 1. **Conecte o Google antes**: clique em **Conectar Google** na tela Novo Post, autorize o app no Google e só depois cole o link e clique em Carregar vídeos.
 2. **Confirme que as Edge Functions estão publicadas** no mesmo projeto Supabase que o app usa:
@@ -230,6 +232,12 @@ Se ao colar o link do Drive e clicar em **Carregar vídeos** aparecer **"Erro no
    ```
 3. **Confira o `.env`**: `VITE_SUPABASE_URL` deve ser a URL do projeto (ex.: `https://SEU_PROJECT_ID.supabase.co`).
 4. Se o projeto for **remoto** (Supabase na nuvem), faça login antes do deploy: `npx supabase login` e depois `npx supabase link --project-ref SEU_PROJECT_ID` na pasta do projeto.
+
+**Se o erro for ao clicar em "Publicar Agora"**:
+
+- A **Meta/Instagram** precisa conseguir baixar o vídeo pela URL. A pasta/arquivo do Drive deve estar compartilhado com **"Qualquer pessoa com o link"** (pode ver). Se a URL não for acessível publicamente, a API da Meta falha.
+- Confira em **Supabase → Edge Functions → publish-reel** se está publicada: `npx supabase functions deploy publish-reel`.
+- Veja os **Logs** da função no horário da publicação: o corpo do erro (ex.: mensagem da API do Instagram) aparece lá.
 
 ---
 
