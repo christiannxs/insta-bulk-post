@@ -18,9 +18,13 @@ interface InstagramTokenResponse {
     user_id: string;
     permissions?: string;
   }>;
+  /** Formato oficial Instagram Business Login */
+  access_token?: string;
+  user_id?: string;
   error_type?: string;
   code?: number;
   error_message?: string;
+  error?: { message?: string };
 }
 
 interface LongLivedResponse {
@@ -97,14 +101,22 @@ Deno.serve(async (req) => {
     });
     const tokenData: InstagramTokenResponse = await tokenRes.json();
 
-    if (tokenData.error_message || tokenData.error_type) {
-      const raw = tokenData.error_message ?? "Failed to get access token";
+    const apiError =
+      tokenData.error_message ??
+      tokenData.error?.message ??
+      (tokenData.error_type ? "OAuth error" : null);
+    if (apiError || tokenData.error_type) {
+      const raw = apiError ?? "Failed to get access token";
       const isClientError =
         String(raw).toLowerCase().includes("client") ||
         String(raw).toLowerCase().includes("not found") ||
+        String(raw).toLowerCase().includes("redirect_uri") ||
+        String(raw).toLowerCase().includes("matching code") ||
         tokenData.error_type === "OAuthException";
       const friendly = isClientError
-        ? "App Instagram não encontrado ou inválido. Confira no Supabase (secrets) META_APP_ID e META_APP_SECRET e no app Meta se a Redirect URI está correta (Instagram → Set up business login → OAuth redirect URIs)."
+        ? "App Instagram não encontrado ou inválido. Confira no Supabase (secrets) META_APP_ID e META_APP_SECRET e no app Meta se a Redirect URI está exatamente igual (com https:// e sem barra no final): " +
+          redirect_uri +
+          " (Instagram → Set up business login → OAuth redirect URIs)."
         : raw;
       return new Response(
         JSON.stringify({ error: friendly }),
@@ -113,15 +125,24 @@ Deno.serve(async (req) => {
     }
 
     const first = tokenData.data?.[0];
-    if (!first?.access_token || !first?.user_id) {
+    const accessTokenFromData = first?.access_token ?? tokenData.access_token;
+    const userIdFromData = first?.user_id ?? tokenData.user_id;
+
+    if (!accessTokenFromData || !userIdFromData) {
+      const hint =
+        "Verifique no app Meta (Instagram → Set up business login → OAuth redirect URIs) se a URL está exatamente: " +
+        redirect_uri +
+        " (com https:// e sem barra no final).";
       return new Response(
-        JSON.stringify({ error: "Invalid token response from Instagram" }),
+        JSON.stringify({
+          error: "Resposta de token inválida do Instagram. " + hint,
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    let accessToken = first.access_token;
-    const igUserId = first.user_id;
+    let accessToken = accessTokenFromData;
+    const igUserId = userIdFromData;
 
     // 2) Trocar por long-lived token (60 dias)
     const longLivedUrl = `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(appSecret)}&access_token=${encodeURIComponent(accessToken)}`;
