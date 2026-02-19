@@ -36,6 +36,9 @@ export default function NewPost() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
   const hasInitializedAccounts = useRef(false);
+  const fetchStatusInProgress = useRef(false);
+  const last401At = useRef<number>(0);
+  const DRIVE_STATUS_COOLDOWN_MS = 60_000; // 1 min após 401 para não encher o console
   const { toast } = useToast();
 
   const fetchGoogleStatus = async (retryAfterRefresh = true): Promise<boolean> => {
@@ -43,11 +46,15 @@ export default function NewPost() {
       setGoogleConnected(null);
       return false;
     }
+    if (fetchStatusInProgress.current) return false;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) {
       setGoogleConnected(false);
       return false;
     }
+    if (Date.now() - last401At.current < DRIVE_STATUS_COOLDOWN_MS) return false;
+
+    fetchStatusInProgress.current = true;
     const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim();
     const anonKey = String(
       import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ""
@@ -64,11 +71,13 @@ export default function NewPost() {
 
     try {
       let res = await callDriveStatus(session.access_token);
+      if (res.status === 401) last401At.current = Date.now();
       // 401 = token rejeitado (ex.: expirado); tenta refresh e uma nova chamada
       if (res.status === 401 && retryAfterRefresh) {
         const { data: { session: newSession } } = await supabase.auth.refreshSession();
         if (newSession?.access_token) {
           res = await callDriveStatus(newSession.access_token);
+          if (res.status === 401) last401At.current = Date.now();
         }
       }
       const data = (await res.json().catch(() => ({}))) as { connected?: boolean };
@@ -78,33 +87,34 @@ export default function NewPost() {
     } catch {
       setGoogleConnected(false);
       return false;
+    } finally {
+      fetchStatusInProgress.current = false;
     }
   };
 
   useEffect(() => {
-    fetchGoogleStatus();
+    if (!user?.id || !isGoogleDriveConfigured()) return;
+    const t = setTimeout(() => fetchGoogleStatus(), 300);
+    return () => clearTimeout(t);
   }, [user?.id]);
 
   useEffect(() => {
     const onVisibility = () => {
-      if (document.visibilityState === "visible" && user && isGoogleDriveConfigured()) fetchGoogleStatus();
+      if (document.visibilityState !== "visible" || !user || !isGoogleDriveConfigured()) return;
+      if (Date.now() - last401At.current < DRIVE_STATUS_COOLDOWN_MS) return;
+      fetchGoogleStatus();
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [user?.id]);
 
-  // Ao voltar do callback do Google: mostra "Conectado" de imediato e refaz a verificação com retries
+  // Ao voltar do callback do Google: mostra "Conectado" de imediato e refaz a verificação uma vez
   useEffect(() => {
     if (searchParams.get("google_connected") !== "1" || !user?.id || !isGoogleDriveConfigured()) return;
     setGoogleConnected(true);
-    const delays = [0, 400, 1200, 2500];
-    const timeouts: ReturnType<typeof setTimeout>[] = [];
-    delays.forEach((delay) => {
-      const t = setTimeout(() => fetchGoogleStatus(), delay);
-      timeouts.push(t);
-    });
+    last401At.current = 0;
     const clearParamTimer = setTimeout(() => setSearchParams({}, { replace: true }), 3000);
-    timeouts.push(clearParamTimer);
+    const checkTimer = setTimeout(() => fetchGoogleStatus(), 500);
     const feedbackTimer = setTimeout(async () => {
       const connected = await fetchGoogleStatus();
       if (!connected) {
@@ -115,9 +125,12 @@ export default function NewPost() {
           variant: "destructive",
         });
       }
-    }, 3200);
-    timeouts.push(feedbackTimer);
-    return () => timeouts.forEach((id) => clearTimeout(id));
+    }, 2500);
+    return () => {
+      clearTimeout(clearParamTimer);
+      clearTimeout(checkTimer);
+      clearTimeout(feedbackTimer);
+    };
   }, [searchParams, user?.id, toast]);
 
   useEffect(() => {
