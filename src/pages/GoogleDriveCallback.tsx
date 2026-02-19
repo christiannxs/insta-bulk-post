@@ -127,7 +127,8 @@ export default function GoogleDriveCallback() {
         }
         setStatus("ok");
         setMessage("Google Drive conectado. Redirecionando...");
-        navigate("/new-post", { replace: true });
+        await supabase.auth.refreshSession();
+        navigate("/new-post?google_connected=1", { replace: true });
       } catch (e) {
         if (cancelled) return;
         setStatus("error");

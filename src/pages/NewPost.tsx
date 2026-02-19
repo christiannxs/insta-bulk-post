@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +23,7 @@ export type DriveVideo = { id: string; name: string; mimeType?: string; size?: s
 
 export default function NewPost() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { accounts, isLoading: accountsLoading } = useInstagramAccounts();
   const { addPostWithLogs, isAdding, refetch } = useScheduledPosts();
   const [caption, setCaption] = useState("");
@@ -76,6 +78,16 @@ export default function NewPost() {
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [user?.id]);
+
+  // Ao voltar do callback do Google, refaz a verificação e remove o param; retry se ainda não conectado (evita race)
+  useEffect(() => {
+    if (searchParams.get("google_connected") !== "1" || !user?.id || !isGoogleDriveConfigured()) return;
+    setSearchParams({}, { replace: true });
+    const check = () => fetchGoogleStatus();
+    check();
+    const t = setTimeout(check, 900);
+    return () => clearTimeout(t);
+  }, [searchParams, user?.id]);
 
   useEffect(() => {
     if (accounts.length > 0 && !hasInitializedAccounts.current) {
