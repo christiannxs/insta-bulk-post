@@ -8,6 +8,7 @@ const SESSION_WAIT_MS = 6000;
 const SESSION_POLL_MS = 300;
 const MAX_401_RETRIES = 4;
 const RETRY_DELAYS_MS = [400, 800, 1600, 3200];
+const FETCH_TIMEOUT_MS = 20000;
 
 /** Espera a sessão estar disponível após redirect e devolve sempre sessão refresada (evita 401 por token expirado). */
 async function waitForSession(cancelled: () => boolean): Promise<Session | null> {
@@ -61,7 +62,7 @@ export default function GoogleDriveCallback() {
           throw new Error("NO_SESSION");
         }
 
-        const doRequest = async (): Promise<Response> => {
+        const doRequest = async (signal?: AbortSignal): Promise<Response> => {
           const { data: { session: s }, error: sessionError } = await supabase.auth.refreshSession();
           if (sessionError || !s?.access_token) throw new Error("NO_SESSION");
           const token = s.access_token;
@@ -77,10 +78,29 @@ export default function GoogleDriveCallback() {
               apikey: anonKey,
             },
             body: JSON.stringify({ code, redirect_uri: getGoogleDriveRedirectUri() }),
+            signal,
           });
         };
 
-        let res = await doRequest();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+        let res: Response;
+        try {
+          res = await doRequest(controller.signal);
+        } catch (fetchErr) {
+          clearTimeout(timeoutId);
+          if (cancelled) return;
+          const isAbort = fetchErr instanceof Error && fetchErr.name === "AbortError";
+          setStatus("error");
+          setMessage(
+            isAbort
+              ? "A conexão demorou demais. Verifique sua rede e se a Edge Function google-connect está publicada (veja docs/GOOGLE_DRIVE_SETUP.md). Tente novamente."
+              : (fetchErr instanceof Error ? fetchErr.message : "Erro ao conectar ao servidor.")
+          );
+          setTimeout(() => !cancelled && navigate("/new-post", { replace: true }), 2500);
+          return;
+        }
+        clearTimeout(timeoutId);
         if (cancelled) return;
 
         for (let i = 0; i < MAX_401_RETRIES && res.status === 401 && !cancelled; i++) {

@@ -38,15 +38,15 @@ export default function NewPost() {
   const hasInitializedAccounts = useRef(false);
   const { toast } = useToast();
 
-  const fetchGoogleStatus = async () => {
+  const fetchGoogleStatus = async (): Promise<boolean> => {
     if (!user || !isGoogleDriveConfigured()) {
       setGoogleConnected(null);
-      return;
+      return false;
     }
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) {
       setGoogleConnected(false);
-      return;
+      return false;
     }
     const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim();
     const anonKey = String(
@@ -61,9 +61,12 @@ export default function NewPost() {
         },
       });
       const data = (await res.json().catch(() => ({}))) as { connected?: boolean };
-      setGoogleConnected(Boolean(data.connected));
+      const connected = Boolean(data.connected);
+      setGoogleConnected(connected);
+      return connected;
     } catch {
       setGoogleConnected(false);
+      return false;
     }
   };
 
@@ -79,15 +82,32 @@ export default function NewPost() {
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [user?.id]);
 
-  // Ao voltar do callback do Google, refaz a verificação e remove o param; retry se ainda não conectado (evita race)
+  // Ao voltar do callback do Google, refaz a verificação com vários retries (evita race com persistência no backend)
   useEffect(() => {
     if (searchParams.get("google_connected") !== "1" || !user?.id || !isGoogleDriveConfigured()) return;
-    setSearchParams({}, { replace: true });
-    const check = () => fetchGoogleStatus();
-    check();
-    const t = setTimeout(check, 900);
-    return () => clearTimeout(t);
-  }, [searchParams, user?.id]);
+    const delays = [0, 400, 1200, 2500];
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+    delays.forEach((delay) => {
+      const t = setTimeout(() => fetchGoogleStatus(), delay);
+      timeouts.push(t);
+    });
+    const clearParamTimer = setTimeout(() => setSearchParams({}, { replace: true }), 3000);
+    timeouts.push(clearParamTimer);
+    // Após o último retry, se ainda não conectado, avisar o usuário
+    const feedbackTimer = setTimeout(async () => {
+      const connected = await fetchGoogleStatus();
+      if (!connected) {
+        toast({
+          title: "Conexão com o Google",
+          description:
+            "Não foi possível confirmar a conexão. Faça login de novo se necessário e clique em «Conectar Google» outra vez. Se o erro continuar, confira docs/GOOGLE_DRIVE_SETUP.md (deploy com --no-verify-jwt).",
+          variant: "destructive",
+        });
+      }
+    }, 3200);
+    timeouts.push(feedbackTimer);
+    return () => timeouts.forEach((id) => clearTimeout(id));
+  }, [searchParams, user?.id, toast]);
 
   useEffect(() => {
     if (accounts.length > 0 && !hasInitializedAccounts.current) {
