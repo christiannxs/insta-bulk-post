@@ -47,12 +47,15 @@ export default function NewPost() {
       return false;
     }
     if (fetchStatusInProgress.current) return false;
-    const { data: { session } } = await supabase.auth.getSession();
+    if (Date.now() - last401At.current < DRIVE_STATUS_COOLDOWN_MS) return false;
+
+    // Usar sessão refresada para evitar 401 por token expirado (getSession() pode devolver token antigo)
+    const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+    const session = refreshedSession ?? (await supabase.auth.getSession()).data.session;
     if (!session?.access_token) {
       setGoogleConnected(false);
       return false;
     }
-    if (Date.now() - last401At.current < DRIVE_STATUS_COOLDOWN_MS) return false;
 
     fetchStatusInProgress.current = true;
     const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim();

@@ -109,15 +109,15 @@ npx supabase secrets set GOOGLE_CLIENT_ID=SEU_CLIENT_ID GOOGLE_CLIENT_SECRET=SUA
 
 ## 3. Deploy das Edge Functions
 
-O deploy das Edge Functions é feito **no Supabase** (não via GitHub/Vercel). Use sempre a flag `--no-verify-jwt` na função `google-connect` para evitar erro "Sessão expirada ou inválida" ao voltar da autorização do Google (o JWT é validado dentro da função).
+O deploy das Edge Functions é feito **no Supabase** (não via GitHub/Vercel). Use `--no-verify-jwt` em `google-connect` e em `drive-status` para evitar erro de sessão ao voltar da autorização do Google e ao confirmar o status (o JWT é validado dentro de cada função).
 
 ```bash
 npx supabase functions deploy google-connect --no-verify-jwt
-npx supabase functions deploy drive-status
+npx supabase functions deploy drive-status --no-verify-jwt
 npx supabase functions deploy drive-list
 ```
 
-A função **drive-status** é usada pela tela "Novo Post" para exibir "Conectado ao Google" ou "Não conectado". Sem ela, após autorizar o Google você verá sempre "Não conectado" mesmo com o fluxo correto.
+A função **drive-status** é usada pela tela "Novo Post" para exibir "Conectado ao Google" ou "Não conectado". Sem ela, ou se o gateway rejeitar o JWT, pode aparecer o aviso "Não foi possível confirmar a conexão" — nesse caso faça o deploy com `--no-verify-jwt`: `npx supabase functions deploy drive-status --no-verify-jwt`.
 
 Se o projeto for remoto: `npx supabase login` e `npx supabase link --project-ref SEU_PROJECT_ID` antes, se ainda não tiver linkado.
 
