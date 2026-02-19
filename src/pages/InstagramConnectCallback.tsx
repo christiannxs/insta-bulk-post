@@ -17,7 +17,10 @@ export default function InstagramConnectCallback() {
     const errorFromIg = searchParams.get("error");
 
     if (errorFromIg) {
-      const desc = searchParams.get("error_description") ?? "Acesso negado ou cancelado.";
+      let desc = searchParams.get("error_description") ?? "Acesso negado ou cancelado.";
+      if (/invalid platform app|invalid parameter/i.test(desc)) {
+        desc = "App Meta não configurado para Instagram Login. Veja docs/META_SETUP.md: adicione o produto Instagram → Set up business login e as OAuth redirect URIs.";
+      }
       setStatus("error");
       setMessage(desc);
       const t = setTimeout(() => !cancelled && navigate("/accounts?error=" + encodeURIComponent(desc), { replace: true }), 2500);

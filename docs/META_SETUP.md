@@ -6,6 +6,53 @@ Use este guia depois de criar o app no [Painel de Desenvolvedores da Meta](https
 
 ---
 
+## Passo a passo rápido (painel com "Casos de uso")
+
+Se no **Painel** do seu app aparece a lista "Personalização do app e requisitos" com itens pendentes, siga nesta ordem:
+
+### Passo 1 — Personalizar o caso de uso do Instagram
+
+1. No **Painel**, na lista de requisitos, clique no item pendente:
+   - **"Personalizar o caso de uso 'Gerenciar mensagens e conteúdo no Instagram'"**
+2. Siga o assistente: escolha o que seu app faz (ex.: publicar conteúdo, gerenciar conteúdo) e confirme.
+3. Isso ativa o produto **Instagram** no app e prepara o **Instagram Login (Business login)**.
+
+### Passo 2 — Configurar o Instagram Login e a Redirect URI
+
+1. No menu à **esquerda**, clique em **Instagram** (deve aparecer após o passo 1).
+2. Vá em **API setup with Instagram business login** (ou "Configuração da API com login empresarial do Instagram").
+3. Em **Set up business login** → **Business login settings**, abra as configurações.
+4. Em **OAuth redirect URIs**, adicione **uma URL por linha** (sem vírgula, sem espaço no fim):
+   - Desenvolvimento: `http://localhost:5173/accounts/connect/instagram/callback`
+   - Produção (este projeto): `https://reelspro-eight.vercel.app/accounts/connect/instagram/callback`
+5. Salve (**Save**).
+
+### Passo 3 — Copiar ID do app e chave secreta
+
+1. Menu à esquerda → **Configurações do app** (App settings).
+2. Em **Básico** (Basic):
+   - **ID do app** → copie (vai no `.env` como `VITE_META_APP_ID`).
+   - **Chave secreta do app** → copie e guarde em local seguro (só no Supabase, nunca no frontend).
+
+### Passo 4 — Configurar o projeto
+
+1. No projeto, arquivo **`.env`** na raiz, adicione:
+   ```env
+   VITE_META_APP_ID=COLE_AQUI_O_ID_DO_APP
+   ```
+2. Reinicie o servidor (`npm run dev`) se estiver rodando.
+3. No Supabase, defina os secrets e faça deploy da Edge Function (detalhes na seção 5 abaixo).
+
+### Passo 5 — Testar
+
+1. No app, faça login → **Contas** → **Conectar Instagram**.
+2. Você deve ser redirecionado para a tela de permissões do Instagram (não do Facebook).
+3. Autorize; ao voltar, a conta deve aparecer em Contas.
+
+**Observação:** "Verificação da empresa" e "Análise do app" são necessárias para **publicar** o app e permitir qualquer usuário. Em **modo de desenvolvimento**, só administradores, desenvolvedores e testadores do app conseguem conectar a conta — isso já basta para testar.
+
+---
+
 ## 1. App ID e App Secret
 
 1. No menu à esquerda, clique em **Configurações do app** (App settings).
@@ -28,14 +75,9 @@ Guarde a chave secreta em local seguro; você vai precisar no passo 5.
    http://localhost:5173/accounts/connect/instagram/callback
    ```
 
-   **Produção (quando tiver o domínio):**
+   **Produção (este projeto, Vercel):**
    ```
-   https://SEU-DOMINIO.com/accounts/connect/instagram/callback
-   ```
-
-   Exemplo Vercel:
-   ```
-   https://insta-bulk-post.vercel.app/accounts/connect/instagram/callback
+   https://reelspro-eight.vercel.app/accounts/connect/instagram/callback
    ```
 
 4. Use o **mesmo** App ID e App Secret do app em todo o fluxo (`VITE_META_APP_ID` no frontend e `META_APP_ID` / `META_APP_SECRET` nos secrets do Supabase).
@@ -123,6 +165,23 @@ A troca do `code` por token usa a **chave secreta** do app e só pode rodar no s
 4. Você será redirecionado para a tela de permissões do **Instagram** (não do Facebook).
 5. Autorize o app. Ao terminar, volta para o app em **Contas** com a conta listada.
 
+**Erro "Invalid platform app" / "Solicitação de parâmetros inválida: Invalid platform app"**
+
+Esse erro aparece quando o app no Meta **não está configurado para Instagram Login**. O Instagram só aceita apps que tenham o produto **Instagram** com **API setup with Instagram business login** ativo.
+
+1. No [Painel de Desenvolvedores da Meta](https://developers.facebook.com), abra seu app.
+2. No menu à esquerda, verifique se existe **Instagram**. Se não existir, clique em **Adicionar produto** (Add Product) e adicione **Instagram**.
+3. Dentro de **Instagram**, use **API setup with Instagram business login** (ou "Configuração da API com login empresarial do Instagram"). Não use "Basic Display" nem a opção que exige Página do Facebook.
+4. Em **Set up business login** → **Business login settings**, cadastre as **OAuth redirect URIs** (uma por linha), por exemplo:
+   - `http://localhost:5173/accounts/connect/instagram/callback`
+   - e a URL de produção: `https://reelspro-eight.vercel.app/accounts/connect/instagram/callback`.
+5. Confirme que o **ID do app** usado no `.env` (`VITE_META_APP_ID`) é o **mesmo** desse app (Configurações do app → Básico → ID do app).
+6. Salve as alterações e tente **Conectar Instagram** de novo.
+
+Se o app foi criado como "Consumer" ou outro tipo, o produto Instagram com "Business login" ainda deve estar disponível; o importante é ter **Instagram** → **Set up business login** configurado e as redirect URIs preenchidas.
+
+---
+
 **Erro "Não foi possível se conectar ao Instagram" no localhost**
 
 - Confira se a **Redirect URI** está **exatamente** igual no Meta (Instagram → Set up business login → OAuth redirect URIs). O app usa a origem atual (ex.: `http://localhost:5173`). A URL exata aparece na tela Contas (embaixo do botão).
@@ -162,7 +221,7 @@ Depois faça um novo deploy (Redeploy no painel ou `npx vercel --prod`).
 No app Meta → **Instagram** → **Set up business login** → **OAuth redirect URIs**, adicione:
 
 ```
-https://seu-dominio.vercel.app/accounts/connect/instagram/callback
+https://reelspro-eight.vercel.app/accounts/connect/instagram/callback
 ```
 
 ---
