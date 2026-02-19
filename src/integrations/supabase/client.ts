@@ -32,6 +32,12 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 export const isSupabaseConfigured = (): boolean =>
   Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY && SUPABASE_URL.startsWith("https://"));
 
+/** URL e anon key para chamar Edge Functions (fetch). Evita 401 por falta de apikey. */
+export const getSupabaseEdgeFunctionConfig = (): { url: string; anonKey: string } => ({
+  url: SUPABASE_URL,
+  anonKey: SUPABASE_PUBLISHABLE_KEY,
+});
+
 /**
  * Testa se o servidor Supabase está acessível (URL e rede).
  * Útil para diagnosticar "Não foi possível conectar ao servidor".

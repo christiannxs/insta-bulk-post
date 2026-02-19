@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getSupabaseEdgeFunctionConfig } from "@/integrations/supabase/client";
 import { getInstagramConnectRedirectUri, instagramStateMatches } from "@/lib/instagramOAuth";
 
 export default function InstagramConnectCallback() {
@@ -36,30 +36,49 @@ export default function InstagramConnectCallback() {
 
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // Atualiza a sessão antes de chamar a Edge Function (evita 401 após redirect do Instagram)
+        const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
         if (cancelled) return;
-        if (!session?.access_token) {
+        if (sessionError || !session?.access_token) {
           setStatus("error");
-          setMessage("Faça login novamente e tente conectar a conta.");
+          setMessage("Sessão expirada. Faça login novamente e tente conectar a conta.");
           setTimeout(() => !cancelled && navigate("/login", { replace: true }), 2500);
           return;
         }
 
-        const { data, error } = await supabase.functions.invoke("instagram-connect", {
-          body: { code, redirect_uri: getInstagramConnectRedirectUri() },
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-
-        if (cancelled) return;
-        if (error) {
+        const { url: supabaseUrl, anonKey } = getSupabaseEdgeFunctionConfig();
+        if (!supabaseUrl || !anonKey) {
           setStatus("error");
-          setMessage(error.message ?? "Erro ao conectar.");
-          setTimeout(() => !cancelled && navigate("/accounts?error=" + encodeURIComponent(error.message ?? "unknown"), { replace: true }), 2500);
+          setMessage("Configuração do Supabase faltando (URL ou chave). Verifique o .env e as variáveis no Vercel.");
+          setTimeout(() => !cancelled && navigate("/accounts?error=config", { replace: true }), 2500);
           return;
         }
 
-        const added = (data as { added?: number })?.added ?? 0;
-        const updated = (data as { updated?: boolean })?.updated ?? false;
+        const res = await fetch(`${supabaseUrl}/functions/v1/instagram-connect`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+            apikey: anonKey,
+          },
+          body: JSON.stringify({ code, redirect_uri: getInstagramConnectRedirectUri() }),
+        });
+        const body = (await res.json().catch(() => ({}))) as { error?: string; added?: number; updated?: boolean };
+
+        if (cancelled) return;
+        if (!res.ok) {
+          let detail = body?.error ?? res.statusText ?? "Erro ao conectar.";
+          if (res.status === 401) {
+            detail = body?.error?.includes("session") ? detail : "Sessão inválida ou expirada. Faça login novamente e tente conectar o Instagram.";
+          }
+          setStatus("error");
+          setMessage(detail);
+          setTimeout(() => !cancelled && navigate("/accounts?error=" + encodeURIComponent(detail), { replace: true }), 2500);
+          return;
+        }
+
+        const added = body?.added ?? 0;
+        const updated = body?.updated ?? false;
         setStatus("ok");
         if (added > 0) setMessage("Conta conectada. Redirecionando...");
         else if (updated) setMessage("Conta atualizada. Redirecionando...");
