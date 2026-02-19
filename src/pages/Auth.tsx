@@ -26,8 +26,8 @@ export default function Auth() {
     try {
       const result = await testSupabaseConnection();
       if (result.ok) {
-        toast({ title: "Conexão OK", description: "O servidor Supabase está acessível." });
-      } else if (result.reason === "invalid_key") {
+        toast({ title: "Conexão OK", description: "O servidor está acessível." });
+      } else if (!result.ok && result.reason === "invalid_key") {
         toast({
           title: "Chave inválida",
           description: "Use a chave 'anon public' no .env (Project Settings > API).",

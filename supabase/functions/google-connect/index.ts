@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
       return json({ error: upsertErr.message }, 400);
     }
 
-    return json({ success: true });
+    return json({ success: true }, 200);
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Erro inesperado" }, 500);
   }
