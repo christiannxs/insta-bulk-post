@@ -23,5 +23,5 @@ fi
 
 npx supabase secrets set META_APP_ID="$META_APP_ID" META_APP_SECRET="$META_APP_SECRET"
 echo ""
-echo "Secrets configurados. Faça o deploy da Edge Function:"
-echo "  npx supabase functions deploy instagram-connect"
+echo "Secrets configurados. Faça o deploy da Edge Function (use --no-verify-jwt para evitar erro de sessão no callback):"
+echo "  npx supabase functions deploy instagram-connect --no-verify-jwt"

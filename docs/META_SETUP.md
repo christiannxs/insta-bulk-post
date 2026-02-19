@@ -152,10 +152,10 @@ A troca do código OAuth por token usa a **chave secreta** e só pode rodar no s
    npx supabase secrets set META_APP_ID=SEU_APP_ID META_APP_SECRET=SUA_CHAVE_SECRETA
    ```
 
-3. Faça o deploy das Edge Functions:
+3. Faça o deploy das Edge Functions. Use `--no-verify-jwt` na **instagram-connect** para evitar erro "Sessão inválida ou expirada" após o redirect do Instagram (o JWT é validado dentro da função):
 
    ```bash
-   npx supabase functions deploy instagram-connect
+   npx supabase functions deploy instagram-connect --no-verify-jwt
    npx supabase functions deploy publish-reel
    npx supabase functions deploy publish-scheduled
    ```
@@ -309,10 +309,10 @@ A troca do `code` por token usa a **chave secreta** do app e só pode rodar no s
    npx supabase secrets set META_APP_ID=SEU_APP_ID META_APP_SECRET=SUA_CHAVE_SECRETA
    ```
 
-3. Faça o deploy das Edge Functions **instagram-connect**, **publish-reel** e **publish-scheduled** (agendados):
+3. Faça o deploy das Edge Functions **instagram-connect**, **publish-reel** e **publish-scheduled** (agendados). Use `--no-verify-jwt` na **instagram-connect** para evitar "Sessão inválida ou expirada" no callback (a função valida o JWT internamente):
 
    ```bash
-   npx supabase functions deploy instagram-connect
+   npx supabase functions deploy instagram-connect --no-verify-jwt
    npx supabase functions deploy publish-reel
    npx supabase functions deploy publish-scheduled
    ```

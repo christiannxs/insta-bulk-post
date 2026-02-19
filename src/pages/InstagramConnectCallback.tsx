@@ -37,14 +37,16 @@ export default function InstagramConnectCallback() {
     (async () => {
       try {
         // Atualiza a sessão antes de chamar a Edge Function (evita 401 após redirect do Instagram)
-        const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+        const { data: { session: refreshedSession }, error: sessionError } = await supabase.auth.refreshSession();
         if (cancelled) return;
-        if (sessionError || !session?.access_token) {
+        if (sessionError || !refreshedSession?.access_token) {
           setStatus("error");
           setMessage("Sessão expirada. Faça login novamente e tente conectar a conta.");
           setTimeout(() => !cancelled && navigate("/login", { replace: true }), 2500);
           return;
         }
+        // Usar sessão recém-atualizada (evita race após redirect)
+        const session = refreshedSession;
 
         const { url: supabaseUrl, anonKey } = getSupabaseEdgeFunctionConfig();
         if (!supabaseUrl || !anonKey) {
@@ -70,6 +72,7 @@ export default function InstagramConnectCallback() {
           let detail = body?.error ?? res.statusText ?? "Erro ao conectar.";
           if (res.status === 401) {
             detail = body?.error?.includes("session") ? detail : "Sessão inválida ou expirada. Faça login novamente e tente conectar o Instagram.";
+            detail += " Se persistir, faça o deploy com: npx supabase functions deploy instagram-connect --no-verify-jwt (veja docs/META_SETUP.md).";
           }
           setStatus("error");
           setMessage(detail);
