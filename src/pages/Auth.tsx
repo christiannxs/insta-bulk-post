@@ -27,7 +27,7 @@ export default function Auth() {
       const result = await testSupabaseConnection();
       if (result.ok) {
         toast({ title: "Conexão OK", description: "O servidor está acessível." });
-      } else if (!result.ok && result.reason === "invalid_key") {
+      } else if ("reason" in result && result.reason === "invalid_key") {
         toast({
           title: "Chave inválida",
           description: "Use a chave 'anon public' no .env (Project Settings > API).",
@@ -80,8 +80,8 @@ export default function Auth() {
         const result = await testSupabaseConnection();
         if (result.ok) {
           description =
-            "O servidor respondeu, mas algo falhou na autenticação. Confirme no .env que está usando a chave 'anon public' (Project Settings > API), não a service_role.";
-        } else if (result.reason === "invalid_key") {
+            "O servidor respondeu, mas algo falhou na autenticação. Confirme que está usando a chave correta.";
+        } else if ("reason" in result && result.reason === "invalid_key") {
           description =
             "A URL do Supabase está correta, mas a chave foi rejeitada. No Dashboard: Project Settings > API, copie a chave 'anon public' (não a service_role) para VITE_SUPABASE_PUBLISHABLE_KEY no .env.";
         } else {

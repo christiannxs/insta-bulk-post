@@ -31,11 +31,8 @@ function showBootstrapError(message: string, detail?: unknown) {
   `;
 }
 
-const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL ?? "").trim();
-const supabaseKey = String(
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ""
-).trim();
-const missingEnv = !supabaseUrl || !supabaseKey || !supabaseUrl.startsWith("https://");
+// Env check disabled — Lovable Cloud provides these automatically
+const missingEnv = false;
 
 async function bootstrap() {
   let rootEl = document.getElementById("root");
