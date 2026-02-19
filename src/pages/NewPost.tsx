@@ -38,7 +38,7 @@ export default function NewPost() {
   const hasInitializedAccounts = useRef(false);
   const { toast } = useToast();
 
-  const fetchGoogleStatus = async (): Promise<boolean> => {
+  const fetchGoogleStatus = async (retryAfterRefresh = true): Promise<boolean> => {
     if (!user || !isGoogleDriveConfigured()) {
       setGoogleConnected(null);
       return false;
@@ -52,16 +52,27 @@ export default function NewPost() {
     const anonKey = String(
       import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? ""
     ).trim();
-    try {
-      const res = await fetch(`${supabaseUrl}/functions/v1/drive-status`, {
+
+    const callDriveStatus = (accessToken: string) =>
+      fetch(`${supabaseUrl}/functions/v1/drive-status`, {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${accessToken}`,
           apikey: anonKey,
         },
       });
+
+    try {
+      let res = await callDriveStatus(session.access_token);
+      // 401 = token rejeitado (ex.: expirado); tenta refresh e uma nova chamada
+      if (res.status === 401 && retryAfterRefresh) {
+        const { data: { session: newSession } } = await supabase.auth.refreshSession();
+        if (newSession?.access_token) {
+          res = await callDriveStatus(newSession.access_token);
+        }
+      }
       const data = (await res.json().catch(() => ({}))) as { connected?: boolean };
-      const connected = Boolean(data.connected);
+      const connected = res.ok && Boolean(data.connected);
       setGoogleConnected(connected);
       return connected;
     } catch {
