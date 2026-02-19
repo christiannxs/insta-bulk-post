@@ -25,6 +25,9 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          {/* Callback do Google fora do ProtectedRoute: ao voltar do OAuth a sessão pode ainda não estar
+              reidratada; aqui a página carrega e o GoogleDriveCallback espera a sessão (waitForSession). */}
+          <Route path="/new-post/drive/callback" element={<GoogleDriveCallback />} />
           <Route
             element={
               <ProtectedRoute>
@@ -35,7 +38,6 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/accounts" element={<Accounts />} />
             <Route path="/accounts/connect/instagram/callback" element={<InstagramConnectCallback />} />
-            <Route path="/new-post/drive/callback" element={<GoogleDriveCallback />} />
             <Route path="/new-post" element={<NewPost />} />
             <Route path="/calendar" element={<CalendarView />} />
             <Route path="/scheduled" element={<Scheduled />} />
