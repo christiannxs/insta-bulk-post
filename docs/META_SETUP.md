@@ -87,6 +87,15 @@ Se não aparecer essa lista, no menu à esquerda clique em **Adicionar produto**
 
 ### 4. Copiar ID do app e Chave secreta
 
+Use as credenciais **do Instagram**, não as do app principal, quando a tela mostrar as duas.
+
+1. No menu à esquerda, vá em **Instagram** → **Conheça a API do Instagram** (ou a seção onde está configurado o login empresarial).
+2. Se aparecer **"ID do app do Instagram"** e **"Chave secreta do app do Instagram"**, use **esses** valores:
+   - **ID do app do Instagram** → vai no `.env` como `VITE_META_APP_ID` e no Supabase como `META_APP_ID`.
+   - **Chave secreta do app do Instagram** → só no Supabase como `META_APP_SECRET` (nunca no frontend).
+
+Se na sua conta não existir essa seção e só aparecer o app geral:
+
 1. Menu à esquerda → **Configurações do app** (App settings).
 2. Em **Básico** (Basic):
    - **ID do app** → copie (vai no `.env`).
@@ -214,8 +223,10 @@ Se no **Painel** do seu app aparece a lista "Personalização do app e requisito
 
 ## 1. App ID e App Secret
 
-1. No menu à esquerda, clique em **Configurações do app** (App settings).
-2. Em **Básico** (Basic), anote:
+**Importante:** Se no painel do app, dentro de **Instagram**, aparecer **"ID do app do Instagram"** e **"Chave secreta do app do Instagram"** (valores diferentes do app principal), use **esses** para o fluxo de conexão. Caso contrário use o ID e a chave de **Configurações do app → Básico**.
+
+1. No menu à esquerda, vá em **Instagram** e confira se há **ID do app do Instagram** e **Chave secreta do app do Instagram**. Se houver, use esses.
+2. Senão, em **Configurações do app** (App settings) → **Básico** (Basic), anote:
    - **ID do app** → use no `.env` como `VITE_META_APP_ID`
    - **Chave secreta do app** → use **somente no Supabase** (secrets da Edge Function), nunca no frontend
 
@@ -326,15 +337,15 @@ A troca do `code` por token usa a **chave secreta** do app e só pode rodar no s
 
 **Erro "Invalid platform app" / "Solicitação de parâmetros inválida: Invalid platform app"**
 
-Esse erro aparece quando o app no Meta **não está configurado para Instagram Login**. O Instagram só aceita apps que tenham o produto **Instagram** com **API setup with Instagram business login** ativo.
+Esse erro aparece quando o app no Meta **não está configurado para Instagram Login** ou quando estão sendo usadas as credenciais erradas (do app principal em vez do Instagram).
 
 1. No [Painel de Desenvolvedores da Meta](https://developers.facebook.com), abra seu app.
-2. No menu à esquerda, verifique se existe **Instagram**. Se não existir, clique em **Adicionar produto** (Add Product) e adicione **Instagram**.
-3. Dentro de **Instagram**, use **API setup with Instagram business login** (ou "Configuração da API com login empresarial do Instagram"). Não use "Basic Display" nem a opção que exige Página do Facebook.
+2. No menu à esquerda, vá em **Instagram**. Se na seção "Conheça a API do Instagram" aparecer **"ID do app do Instagram"** e **"Chave secreta do app do Instagram"**, use **esses** valores (não o ID do app geral): no `.env` coloque o **ID do app do Instagram** em `VITE_META_APP_ID` e no Supabase use o **ID do app do Instagram** e a **Chave secreta do app do Instagram** em `META_APP_ID` e `META_APP_SECRET`.
+3. Verifique se existe o produto **Instagram** com **API setup with Instagram business login** ativo. Não use "Basic Display" nem a opção que exige Página do Facebook.
 4. Em **Set up business login** → **Business login settings**, cadastre as **OAuth redirect URIs** (uma por linha), por exemplo:
    - `http://localhost:5173/accounts/connect/instagram/callback`
    - e a URL de produção: `https://reelspro-eight.vercel.app/accounts/connect/instagram/callback`.
-5. Confirme que o **ID do app** usado no `.env` (`VITE_META_APP_ID`) é o **mesmo** desse app (Configurações do app → Básico → ID do app).
+5. Confirme que o ID usado no `.env` e no Supabase é o **ID do app do Instagram** (ou o ID do app, se não houver campo separado).
 6. Salve as alterações e tente **Conectar Instagram** de novo.
 
 Se o app foi criado como "Consumer" ou outro tipo, o produto Instagram com "Business login" ainda deve estar disponível; o importante é ter **Instagram** → **Set up business login** configurado e as redirect URIs preenchidas.
