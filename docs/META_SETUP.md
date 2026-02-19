@@ -2,7 +2,142 @@
 
 O sistema usa **apenas** a conexão direta com o Instagram: **Instagram API with Instagram Login**. Não é necessário Facebook nem Página do Facebook.
 
-Use este guia depois de criar o app no [Painel de Desenvolvedores da Meta](https://developers.facebook.com).
+---
+
+## Usar um app que você já tem
+
+**Pode.** Se você já tem um app no Meta for Developers, use esse mesmo app. Em vez de criar um novo:
+
+1. **Confirme** que o produto **Instagram** está ativado no app (menu esquerdo → Instagram).
+2. Siga a partir do **Passo 3** (Redirect URIs), depois **Passo 4** (ID e chave secreta) e o restante.
+3. Se aparecer **"Função de desenvolvedor é insuficiente"**, peça a um administrador do app para te adicionar como **Administrador** ou **Desenvolvedor** (Passo 5).
+
+---
+
+## Passo a passo: criar um novo app (opcional)
+
+Se preferir criar um app do zero, siga na ordem. Assim você já fica como administrador e evita o erro **"Função de desenvolvedor é insuficiente"**.
+
+### 1. Criar o app no Meta
+
+1. Acesse **[developers.facebook.com](https://developers.facebook.com)** e faça login com sua conta Facebook.
+2. Clique em **Meus apps** (My apps) → **Criar app** (Create app).
+3. Escolha **Outro** (Other) como tipo de uso e **Criar**.
+4. Selecione **Aplicativo de consumo** (Consumer) ou **Empresa** (Business) — ambos permitem Instagram. Clique **Avançar**.
+5. Preencha:
+   - **Nome do app:** ex. `Insta Bulk Post` (ou o que quiser).
+   - **Email de contato:** seu email.
+   - **Conta de negócios:** pode pular ou escolher uma se tiver.
+6. Clique **Criar app**. O app será criado e você já será **Administrador** — por isso não terá erro de "função insuficiente".
+
+---
+
+### 2. Ativar o produto Instagram (casos de uso)
+
+1. No **Painel** do app, procure a lista **"Personalização do app e requisitos"** (ou **Use cases**).
+2. Clique no item pendente: **"Personalizar o caso de uso 'Gerenciar mensagens e conteúdo no Instagram'"** (ou similar).
+3. No assistente, escolha o que o app faz (ex.: **publicar conteúdo**, **gerenciar conteúdo**) e confirme.
+4. Isso ativa o produto **Instagram** e o **Instagram Login (Business login)**.
+
+Se não aparecer essa lista, no menu à esquerda clique em **Adicionar produto** (Add Product), procure **Instagram** e adicione. Depois entre em **Instagram** → **API setup with Instagram business login**.
+
+---
+
+### 3. Configurar Redirect URIs (obrigatório)
+
+1. No menu à **esquerda**, clique em **Instagram**.
+2. Vá em **API setup with Instagram business login** (ou "Configuração da API com login empresarial do Instagram").
+3. Em **Set up business login** → **Business login settings**, abra as configurações.
+4. Em **OAuth redirect URIs**, adicione **uma URL por linha** (sem vírgula, sem espaço no fim):
+
+   ```
+   http://localhost:5173/accounts/connect/instagram/callback
+   https://reelspro-eight.vercel.app/accounts/connect/instagram/callback
+   ```
+
+   (Troque a segunda URL se seu domínio de produção for outro.)
+
+5. Clique **Salvar** (Save).
+
+---
+
+### 4. Copiar ID do app e Chave secreta
+
+1. Menu à esquerda → **Configurações do app** (App settings).
+2. Em **Básico** (Basic):
+   - **ID do app** → copie (vai no `.env`).
+   - **Chave secreta do app** → clique em **Mostrar**, copie e guarde em local seguro (só no Supabase, nunca no frontend).
+
+---
+
+### 5. Adicionar sua conta como função (se criou o app com outra conta)
+
+Se **você** criou o app, já é Admin e pode pular este passo.
+
+Se outra pessoa criou o app e você vai testar:
+
+1. Menu à esquerda → **Configurações do app** → **Funções** (Roles) ou **App roles**.
+2. Em **Administradores** ou **Desenvolvedores**, clique em **Adicionar** e informe o Facebook/Instagram que você usa para **Conectar Instagram**. Assim não aparece "Função de desenvolvedor é insuficiente".
+
+---
+
+### 6. Configurar o projeto (.env)
+
+1. Na **raiz** do projeto (pasta do `package.json`), abra ou crie o arquivo **`.env`**.
+2. Adicione ou atualize (use o **ID do app** que você copiou; **não** coloque a chave secreta aqui):
+
+   ```env
+   VITE_META_APP_ID=COLE_AQUI_O_ID_DO_APP
+   ```
+
+   Exemplo: `VITE_META_APP_ID=1234567890123456`
+
+3. Salve. Se o servidor estiver rodando, reinicie:
+
+   ```bash
+   npm run dev
+   ```
+
+---
+
+### 7. Secrets e Edge Function no Supabase
+
+A troca do código OAuth por token usa a **chave secreta** e só pode rodar no servidor (Edge Function).
+
+1. No terminal, na raiz do projeto:
+
+   ```bash
+   npx supabase login
+   npx supabase link --project-ref SEU_PROJECT_REF
+   ```
+
+   O **Project Ref** está em: Supabase Dashboard → Project Settings → General → **Reference ID**.
+
+2. Defina os secrets (use o **mesmo** ID e a **chave secreta** do app que você criou):
+
+   ```bash
+   npx supabase secrets set META_APP_ID=SEU_APP_ID META_APP_SECRET=SUA_CHAVE_SECRETA
+   ```
+
+3. Faça o deploy das Edge Functions:
+
+   ```bash
+   npx supabase functions deploy instagram-connect
+   npx supabase functions deploy publish-reel
+   npx supabase functions deploy publish-scheduled
+   ```
+
+---
+
+### 8. Testar a conexão
+
+1. Com o `.env` configurado e o servidor rodando (`npm run dev`), faça **login** no app (Supabase).
+2. Vá em **Contas**.
+3. Clique em **Conectar Instagram**.
+4. Você será redirecionado para a tela de permissões do **Instagram** (não do Facebook). Autorize.
+5. Ao voltar, a conta deve aparecer em **Contas**.
+
+**Requisito:** a conta Instagram deve ser **Business ou Creator** (conta profissional).
 
 ---
 
