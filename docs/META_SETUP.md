@@ -4,6 +4,30 @@ O sistema usa **apenas** a conexão direta com o Instagram: **Instagram API with
 
 ---
 
+## Por que preciso do Facebook Developers? E o mlabs não pede…
+
+**Quem precisa de conta no Facebook Developers** é quem **cria/mantém o app** que faz a conexão com o Instagram — ou seja, você (ou sua empresa), ao usar a API oficial.
+
+**Quem só vai conectar a conta e publicar** não precisa ser desenvolvedor: basta ter uma conta Instagram **Creator** ou **Business**. O usuário final nunca precisa criar um app.
+
+Ferramentas como o **mlabs** (e outras de agendamento/publicação) não pedem que *você* crie um app porque **elas já têm o próprio app** na Meta. Quando o usuário clica em “Conectar Instagram”, está autorizando o **app do mlabs** — não um app seu. Por isso, para o usuário, basta ser conta creator; o “custo” de ter um app é da ferramenta, não do usuário.
+
+**Resumindo:**
+
+| Cenário | Quem precisa de app no Facebook Developers? | Quem só conecta/publica |
+|--------|---------------------------------------------|--------------------------|
+| **Você desenvolve este sistema** | Você (criar 1 app e colocá-lo “ao vivo”) | Só conta Creator/Business |
+| **Uso de ferramenta tipo mlabs** | A ferramenta (app deles) | Só conta Creator/Business |
+
+**Existe forma oficial de não usar Facebook Developers?**
+
+- **Não**, se você for **quem desenvolve** a integração. A API oficial da Meta exige que **algum** app esteja registrado — ou o seu, ou o de um serviço terceiro.
+- **Alternativa:** usar um provedor “Instagram API as a service” (ex.: Late, ou similares) que já tem app aprovado. Aí o usuário conecta no app deles e você consome a API deles para publicar. Você não cria app na Meta, mas passa a depender (e pagar) esse provedor.
+
+Neste projeto, a opção usada é a **oficial**: um app seu no Meta, uma vez configurado e colocado “ao vivo”, permite que **qualquer** conta Creator/Business conecte e publique, sem precisar de conta de desenvolvedor.
+
+---
+
 ## Usar um app que você já tem
 
 **Pode.** Se você já tem um app no Meta for Developers, use esse mesmo app. Em vez de criar um novo:
@@ -326,10 +350,21 @@ Se o app foi criado como "Consumer" ou outro tipo, o produto Instagram com "Busi
 
 ---
 
-## 7. Modo de desenvolvimento vs produção
+## 7. Modo de desenvolvimento vs produção — "Várias contas" sem ser desenvolvedor
 
-- Em **modo de desenvolvimento**, apenas administradores, desenvolvedores e testadores do app no Meta conseguem usar o login.
-- Para qualquer usuário em produção, é preciso **Publicar** o app e, para algumas permissões, passar pela **Revisão do app** da Meta.
+**Você não precisa adicionar cada conta como desenvolvedor.** O erro "Função de desenvolvedor é insuficiente" aparece só porque o app está em **modo de desenvolvimento**. Nesse modo, a Meta limita o login a quem for **Administrador**, **Desenvolvedor** ou **Testador** do app — por isso serviços como o que você citou (que usam app em produção) não pedem isso.
+
+Para conectar **várias e várias contas** (qualquer conta Instagram Business/Creator), faça o app ficar **em produção**:
+
+1. No [Meta for Developers](https://developers.facebook.com), abra seu app.
+2. No canto superior, onde está **"Em desenvolvimento"** (Development), clique e mude para **Ao vivo** (Live).
+3. Se a Meta pedir, complete **Verificação da empresa** (Business verification) e **Revisão do app** (App Review) para as permissões que você usa (`instagram_business_basic`, `instagram_business_content_publish`).
+
+Depois que o app estiver **Ao vivo**, qualquer pessoa com conta Instagram profissional pode **Conectar Instagram** no seu sistema, sem ser adicionada como desenvolvedor — igual a outros serviços que não usam "função de desenvolvedor".
+
+**Resumo:**
+- **Modo desenvolvimento:** só admin/desenvolvedor/testador do app conseguem conectar → erro "Função de desenvolvedor é insuficiente" para os demais.
+- **Modo ao vivo (app publicado):** qualquer conta pode conectar; não é preciso adicionar ninguém como desenvolvedor.
 
 ---
 
