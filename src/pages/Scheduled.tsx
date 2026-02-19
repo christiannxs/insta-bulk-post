@@ -16,6 +16,7 @@ import {
   insertPublishLogsForPost,
 } from "@/lib/supabase/posts";
 import { supabase } from "@/integrations/supabase/client";
+import { invokePublishReel } from "@/lib/publishReel";
 
 const statusConfig: Record<string, { label: string; icon: typeof Clock; variant: "default" | "secondary" | "destructive" }> = {
   pending: { label: "Pendente", icon: Clock, variant: "secondary" },
@@ -76,30 +77,13 @@ export default function Scheduled() {
       let fail = 0;
       for (const log of logs) {
         try {
-          const { data, error } = await supabase.functions.invoke("publish-reel", {
-            body: {
-              account_id: log.account_id,
-              video_url: post.video_url.trim(),
-              caption: post.caption || null,
-            },
-            headers: { Authorization: `Bearer ${session.access_token}` },
+          const result = await invokePublishReel(session.access_token, {
+            account_id: log.account_id,
+            video_url: post.video_url.trim(),
+            caption: post.caption || null,
           });
-          if (error) {
-            let msg = error.message;
-            const errWithCtx = error as { context?: { json(): Promise<{ error?: string }> } };
-            if (errWithCtx.context?.json) {
-              try {
-                const body = await errWithCtx.context.json();
-                if (body?.error) msg = body.error;
-              } catch {
-                /* usar error.message */
-              }
-            }
-            throw new Error(msg);
-          }
-          const err = (data as { error?: string })?.error;
-          if (err) throw new Error(err);
-          const mediaId = (data as { media_id?: string })?.media_id ?? null;
+          if (result.error) throw new Error(result.error);
+          const mediaId = result.data?.media_id ?? null;
           await updatePublishLog(log.id, {
             status: "published",
             ig_media_id: mediaId,

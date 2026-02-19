@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
 import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 import { supabase } from "@/integrations/supabase/client";
+import { invokePublishReel } from "@/lib/publishReel";
 import {
   isGoogleDriveConfigured,
   getGoogleConnectUrl,
@@ -309,25 +310,12 @@ export default function NewPost() {
     for (const { url, name } of list) {
       for (const accountId of selectedAccounts) {
         try {
-          const { data, error } = await supabase.functions.invoke("publish-reel", {
-            body: { account_id: accountId, video_url: url, caption: caption || null },
-            headers: { Authorization: `Bearer ${session.access_token}` },
+          const result = await invokePublishReel(session.access_token, {
+            account_id: accountId,
+            video_url: url,
+            caption: caption || null,
           });
-          if (error) {
-            let msg = error.message;
-            const errWithCtx = error as { context?: { json(): Promise<{ error?: string }> } };
-            if (errWithCtx.context?.json) {
-              try {
-                const body = await errWithCtx.context.json();
-                if (body?.error) msg = body.error;
-              } catch {
-                /* usar error.message */
-              }
-            }
-            throw new Error(msg);
-          }
-          const bodyError = (data as { error?: string })?.error;
-          if (bodyError) throw new Error(bodyError);
+          if (result.error) throw new Error(result.error);
           ok++;
         } catch (e) {
           fail++;
