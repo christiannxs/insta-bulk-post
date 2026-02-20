@@ -34,17 +34,23 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const token = authHeader.slice(7);
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user?.id) {
+    // Verificar JWT com anon key (compatível com novas chaves JWT assimétricas do Supabase)
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    const userId = claimsData?.claims?.sub as string | undefined;
+    if (claimsError || !userId) {
+      const msg = claimsError?.message ?? "Sessão inválida ou expirada.";
       return new Response(
-        JSON.stringify({ error: "Invalid or expired session" }),
+        JSON.stringify({ error: msg }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json().catch(() => ({}));
     const accountId = (body as { account_id?: string }).account_id;
@@ -59,7 +65,7 @@ Deno.serve(async (req) => {
       .from("instagram_accounts")
       .select("id, instagram_user_id, access_token")
       .eq("id", accountId)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .maybeSingle();
 
     if (fetchError || !account) {
@@ -150,7 +156,7 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq("id", account.id)
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
 
     if (updateErr) {
       return new Response(
