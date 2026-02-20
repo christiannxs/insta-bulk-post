@@ -84,6 +84,17 @@ export default function Accounts() {
 
   const isActive = (status: string) => status === "active";
 
+  /** Instagram às vezes retorna o ID numérico no lugar do username; não exibir como @25883170477976770 */
+  const isNumericId = (s: string) => /^\d+$/.test(s) && s.length >= 10;
+  const displayName = (account: (typeof accounts)[0]) =>
+    isNumericId(account.username) ? null : account.username;
+  const displaySubline = (account: (typeof accounts)[0]) =>
+    isNumericId(account.username)
+      ? `ID: ${account.username.slice(0, 8)}… · Clique em "Atualizar perfil" para buscar o @`
+      : "Conta conectada";
+  const avatarFallback = (account: (typeof accounts)[0]) =>
+    isNumericId(account.username) ? "IG" : account.username.slice(0, 2).toUpperCase();
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -125,14 +136,16 @@ export default function Accounts() {
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-11 w-11">
-                      <AvatarImage src={account.profile_picture_url ?? undefined} alt={account.username} />
+                      <AvatarImage src={account.profile_picture_url ?? undefined} alt={displayName(account) ?? "Conta Instagram"} />
                       <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
-                        {account.username.slice(0, 2).toUpperCase()}
+                        {avatarFallback(account)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-semibold">@{account.username}</p>
-                      <p className="text-xs text-muted-foreground">Conta conectada</p>
+                      <p className="font-semibold">
+                        {displayName(account) != null ? `@${displayName(account)}` : "Conta Instagram"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{displaySubline(account)}</p>
                     </div>
                   </div>
                   <Badge variant={isActive(account.status) ? "default" : "destructive"}>

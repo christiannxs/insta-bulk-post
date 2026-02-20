@@ -317,6 +317,13 @@ A troca do `code` por token usa a **chave secreta** do app e só pode rodar no s
    npx supabase functions deploy publish-scheduled
    ```
 
+   **Se aparecer "O servidor rejeitou o login" ao publicar:** a Edge Function (ou o gateway) devolve 401 ao validar o token. Faça o seguinte:
+   - **URL e chave do Supabase:** no frontend (`.env` ou Vercel), `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (ou `VITE_SUPABASE_ANON_KEY`) devem ser do **mesmo** projeto onde as Edge Functions estão. Dashboard → Project Settings → API → confira URL e anon key.
+   - **Projeto linkado:** no terminal, `npx supabase projects list` e confira se o projeto que você usa com `supabase link` é o mesmo cuja URL está no `.env`. Se tiver dois projetos, as funções podem estar em um e o app apontando para o outro.
+   - **Sessão:** feche a aba do app, abra de novo, faça **login de novo** e tente publicar. Token expirado costuma dar 401; novo login gera token novo.
+   - **Mensagem de detalhe:** após atualizar e fazer redeploy da Edge Function `publish-reel`, a próxima falha pode mostrar o motivo exato (ex.: "JWT expired") na mensagem — use isso para confirmar se é token expirado.
+   - **Vercel:** após alterar variáveis, faça um novo deploy para elas valerem.
+
 4. **(Opcional)** Para o cron publicar posts no horário, defina o secret e configure um cron que chame a função:
 
    ```bash

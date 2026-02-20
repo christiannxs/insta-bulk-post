@@ -43,8 +43,12 @@ Deno.serve(async (req) => {
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user?.id) {
-      console.log("[publish-reel] Auth failed:", userError?.message ?? "no user");
-      return json({ error: "Sessão inválida ou expirada" }, 401);
+      const authDetail = userError?.message ?? (user ? "" : "no user");
+      console.log("[publish-reel] Auth failed:", authDetail);
+      // Inclui o motivo real (ex.: "JWT expired") para ajudar no diagnóstico quando as URLs estão corretas
+      const safeDetail = authDetail && /^(JWT|token|session|invalid|expired)/i.test(authDetail) ? authDetail : "";
+      const errorMsg = safeDetail ? `Sessão inválida ou expirada (${safeDetail})` : "Sessão inválida ou expirada";
+      return json({ error: errorMsg }, 401);
     }
 
     const body = await req.json().catch(() => ({}));
