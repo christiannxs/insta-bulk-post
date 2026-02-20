@@ -299,7 +299,9 @@ export default function NewPost() {
       toast({ title: "Selecione ao menos uma conta", variant: "destructive" });
       return;
     }
-    const { data: { session } } = await supabase.auth.getSession();
+    // Usar sessão refresada para evitar 401 por token expirado (getSession() pode devolver token antigo)
+    const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+    const session = refreshedSession ?? (await supabase.auth.getSession()).data.session;
     if (!session?.access_token) {
       toast({ title: "Faça login novamente", variant: "destructive" });
       return;
@@ -319,7 +321,13 @@ export default function NewPost() {
           ok++;
         } catch (e) {
           fail++;
-          toast({ title: `Falha: ${name}`, description: e instanceof Error ? e.message : "Erro", variant: "destructive" });
+          const msg = e instanceof Error ? e.message : "Erro";
+          const is401OrSession =
+            msg.includes("401") || msg.includes("Sessão inválida") || msg.includes("expirada") || msg.includes("Authorization");
+          const description = is401OrSession
+            ? "Sessão expirada. Faça login novamente e tente publicar de novo."
+            : msg;
+          toast({ title: `Falha: ${name}`, description, variant: "destructive" });
         }
       }
     }

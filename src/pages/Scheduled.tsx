@@ -55,7 +55,8 @@ export default function Scheduled() {
       toast({ title: "Erro", description: "Post sem URL de vídeo. Edite o post ou remova-o.", variant: "destructive" });
       return;
     }
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+    const session = refreshedSession ?? (await supabase.auth.getSession()).data.session;
     if (!session?.access_token) {
       toast({ title: "Faça login novamente", variant: "destructive" });
       return;
@@ -96,7 +97,14 @@ export default function Scheduled() {
             status: "failed",
             error_message: e instanceof Error ? e.message : "Erro ao publicar",
           });
-          toast({ title: "Falha em uma conta", description: e instanceof Error ? e.message : "Erro", variant: "destructive" });
+          const msg = e instanceof Error ? e.message : "Erro";
+          const is401OrSession =
+            msg.includes("401") || msg.includes("Sessão inválida") || msg.includes("expirada") || msg.includes("Authorization");
+          toast({
+            title: "Falha em uma conta",
+            description: is401OrSession ? "Sessão expirada. Faça login novamente e tente de novo." : msg,
+            variant: "destructive",
+          });
         }
       }
       await updateScheduledPostStatus(postId, fail === logs.length ? "failed" : "published");
