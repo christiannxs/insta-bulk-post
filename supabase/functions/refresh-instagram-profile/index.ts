@@ -16,7 +16,7 @@ interface IgMeResponse {
   username?: string;
   profile_picture_url?: string;
   id?: string;
-  error?: { message: string };
+  error?: { message?: string; type?: string; code?: number };
 }
 
 Deno.serve(async (req) => {
@@ -81,11 +81,19 @@ Deno.serve(async (req) => {
     const fields = "id,user_id,username,profile_picture_url";
     const meUrl = `${INSTAGRAM_GRAPH}/me?fields=${fields}&access_token=${encodeURIComponent(accessToken)}`;
     const meRes = await fetch(meUrl);
-    let meData: IgMeResponse = await meRes.json();
-
-    if (!meRes.ok || meData.error?.message) {
-      const msg = meData.error?.message ?? "Resposta inválida do Instagram";
-      const isTokenError = /token|expired|invalid|permission/i.test(msg);
+    let meData: IgMeResponse = {};
+    try {
+      meData = (await meRes.json()) as IgMeResponse;
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Resposta inválida do Instagram (não é JSON)." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const igErrorMsg = meData.error?.message ?? (meData as { error_message?: string }).error_message;
+    if (!meRes.ok || igErrorMsg) {
+      const msg = String(igErrorMsg ?? "Resposta inválida do Instagram").trim();
+      const isTokenError = /token|expired|invalid|permission|190|code/i.test(msg) || (meData.error as { code?: number })?.code === 190;
       return new Response(
         JSON.stringify({
           error: isTokenError
@@ -98,10 +106,19 @@ Deno.serve(async (req) => {
     if (!meData.username && igUserId) {
       const byIdUrl = `${INSTAGRAM_GRAPH}/${igUserId}?fields=username,profile_picture_url&access_token=${encodeURIComponent(accessToken)}`;
       const byIdRes = await fetch(byIdUrl);
-      const byIdData: IgMeResponse = await byIdRes.json();
-      if (!byIdRes.ok || byIdData.error?.message) {
-        const msg = byIdData.error?.message ?? "Não foi possível buscar o perfil pelo ID";
-        const isTokenError = /token|expired|invalid|permission/i.test(msg);
+      let byIdData: IgMeResponse = {};
+      try {
+        byIdData = (await byIdRes.json()) as IgMeResponse;
+      } catch {
+        return new Response(
+          JSON.stringify({ error: "Resposta inválida do Instagram ao buscar por ID." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const byIdErr = byIdData.error?.message ?? (byIdData as { error_message?: string }).error_message;
+      if (!byIdRes.ok || byIdErr) {
+        const msg = String(byIdErr ?? "Não foi possível buscar o perfil pelo ID").trim();
+        const isTokenError = /token|expired|invalid|permission|190|code/i.test(msg) || (byIdData.error as { code?: number })?.code === 190;
         return new Response(
           JSON.stringify({
             error: isTokenError

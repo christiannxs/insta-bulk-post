@@ -33,9 +33,27 @@ export async function refreshInstagramProfile(accountId: string): Promise<{ user
     },
     body: JSON.stringify({ account_id: accountId }),
   });
-  const body = (await res.json().catch(() => ({}))) as { error?: string; username?: string; profile_picture_url?: string | null };
+  const rawText = await res.text();
+  let body: { error?: string | { message?: string }; username?: string; profile_picture_url?: string | null } = {};
+  try {
+    body = rawText ? (JSON.parse(rawText) as typeof body) : {};
+  } catch {
+    // resposta não é JSON (ex.: 502 com HTML)
+  }
   if (!res.ok) {
-    const message = body?.error ?? res.statusText ?? "Erro ao atualizar perfil.";
+    const err =
+      typeof body?.error === "string"
+        ? body.error
+        : (body?.error as { message?: string })?.message;
+    const message =
+      err?.trim() ||
+      res.statusText ||
+      (res.status === 404 ? "Função não encontrada. Faça deploy: npx supabase functions deploy refresh-instagram-profile" : null) ||
+      (res.status >= 500 ? "Falha no servidor. Tente de novo em instantes." : null) ||
+      "Erro ao atualizar perfil.";
+    if (import.meta.env.DEV) {
+      console.error("[refresh-instagram-profile]", res.status, res.statusText, body || rawText?.slice(0, 200));
+    }
     throw new Error(message);
   }
   return { username: body.username ?? "instagram", profile_picture_url: body.profile_picture_url ?? null };
