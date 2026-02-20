@@ -153,11 +153,31 @@ Deno.serve(async (req) => {
     const expiresIn = longLivedData.expires_in ?? 5183944;
     const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
-    // 3) Dados do perfil (username, foto)
-    const meUrl = `${INSTAGRAM_GRAPH}/me?fields=user_id,username,profile_picture_url&access_token=${encodeURIComponent(accessToken)}`;
+    // 3) Dados do perfil (username, foto) — /me retorna campos do IG User (id, username, profile_picture_url)
+    const fields = "id,user_id,username,profile_picture_url";
+    const meUrl = `${INSTAGRAM_GRAPH}/me?fields=${fields}&access_token=${encodeURIComponent(accessToken)}`;
     const meRes = await fetch(meUrl);
-    const meData: IgMeResponse = await meRes.json();
-    const username = meData.username ?? meData.user_id ?? "instagram";
+    let meData: IgMeResponse = await meRes.json();
+
+    if (meData.error?.message) {
+      console.warn("[instagram-connect] /me error:", meData.error.message, "— tentando GET por user-id");
+      meData = {};
+    }
+    if (!meData.username && igUserId) {
+      const byIdUrl = `${INSTAGRAM_GRAPH}/${igUserId}?fields=username,profile_picture_url&access_token=${encodeURIComponent(accessToken)}`;
+      const byIdRes = await fetch(byIdUrl);
+      const byIdData: IgMeResponse = await byIdRes.json();
+      if (!byIdData.error && (byIdData.username || byIdData.profile_picture_url)) {
+        meData.username = meData.username ?? byIdData.username ?? undefined;
+        meData.profile_picture_url = meData.profile_picture_url ?? byIdData.profile_picture_url ?? undefined;
+      }
+    }
+    const username =
+      (meData.username && String(meData.username).trim()) ||
+      meData.user_id ||
+      meData.id ||
+      String(igUserId) ||
+      "instagram";
     const profilePictureUrl = meData.profile_picture_url ?? null;
 
     // 4) Evitar duplicata
