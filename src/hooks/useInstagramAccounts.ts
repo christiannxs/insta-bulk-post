@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { fetchInstagramAccounts, deleteInstagramAccount } from "@/lib/supabase/accounts";
+import { fetchInstagramAccounts, deleteInstagramAccount, refreshInstagramProfile } from "@/lib/supabase/accounts";
 
 export function useInstagramAccounts() {
   const { user } = useAuth();
@@ -19,6 +19,13 @@ export function useInstagramAccounts() {
     },
   });
 
+  const refreshProfileMutation = useMutation({
+    mutationFn: refreshInstagramProfile,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["instagram_accounts", user?.id] });
+    },
+  });
+
   return {
     accounts: query.data ?? [],
     isLoading: query.isLoading,
@@ -26,5 +33,7 @@ export function useInstagramAccounts() {
     refetch: query.refetch,
     removeAccount: deleteMutation.mutateAsync,
     isRemoving: deleteMutation.isPending,
+    refreshProfile: refreshProfileMutation.mutateAsync,
+    isRefreshingProfile: refreshProfileMutation.isPending,
   };
 }

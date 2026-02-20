@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getSupabaseEdgeFunctionConfig } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
 export type InstagramAccount = Tables<"instagram_accounts">;
@@ -17,4 +17,23 @@ export async function fetchInstagramAccounts(userId: string): Promise<InstagramA
 export async function deleteInstagramAccount(id: string): Promise<void> {
   const { error } = await supabase.from("instagram_accounts").delete().eq("id", id);
   if (error) throw error;
+}
+
+/** Atualiza nome e foto do perfil da conta no Instagram (chama a Graph API e atualiza o banco). */
+export async function refreshInstagramProfile(accountId: string): Promise<{ username: string; profile_picture_url: string | null }> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("Faça login para atualizar o perfil.");
+  const { url, anonKey } = getSupabaseEdgeFunctionConfig();
+  const res = await fetch(`${url}/functions/v1/refresh-instagram-profile`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+      apikey: anonKey,
+    },
+    body: JSON.stringify({ account_id: accountId }),
+  });
+  const body = (await res.json().catch(() => ({}))) as { error?: string; username?: string; profile_picture_url?: string | null };
+  if (!res.ok) throw new Error(body?.error ?? "Erro ao atualizar perfil.");
+  return { username: body.username ?? "instagram", profile_picture_url: body.profile_picture_url ?? null };
 }

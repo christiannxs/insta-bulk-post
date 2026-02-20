@@ -4,13 +4,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { PlusCircle, RefreshCw, Trash2, Instagram } from "lucide-react";
+import { PlusCircle, RefreshCw, Trash2, Instagram, UserCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
 import { getInstagramConnectRedirectUri, getInstagramConnectUrl, isInstagramLoginConfigured } from "@/lib/instagramOAuth";
 
 export default function Accounts() {
-  const { accounts, isLoading, removeAccount, isRemoving, refetch } = useInstagramAccounts();
+  const { accounts, isLoading, removeAccount, isRemoving, refetch, refreshProfile, isRefreshingProfile } = useInstagramAccounts();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
 
@@ -64,6 +64,19 @@ export default function Accounts() {
       toast({
         title: "Erro ao remover",
         description: e instanceof Error ? e.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRefreshProfile = async (id: string) => {
+    try {
+      await refreshProfile(id);
+      toast({ title: "Perfil atualizado", description: "Nome e foto da conta foram atualizados." });
+    } catch (e: unknown) {
+      toast({
+        title: "Erro ao atualizar perfil",
+        description: e instanceof Error ? e.message : "Reconecte a conta se o token tiver expirado.",
         variant: "destructive",
       });
     }
@@ -130,6 +143,16 @@ export default function Accounts() {
                 <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
                   <p className="text-xs text-muted-foreground">Instagram Business/Creator</p>
                   <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRefreshProfile(account.id)}
+                      disabled={isRefreshingProfile}
+                      title="Buscar nome e foto da conta no Instagram"
+                    >
+                      <UserCircle className="mr-1 h-3 w-3" />
+                      Atualizar perfil
+                    </Button>
                     {!isActive(account.status) && (
                       <Button size="sm" variant="outline" onClick={handleReconnect}>
                         <RefreshCw className="mr-1 h-3 w-3" />
