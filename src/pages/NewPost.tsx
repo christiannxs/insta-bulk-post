@@ -285,6 +285,13 @@ export default function NewPost() {
     return [];
   };
 
+  const getValidAccessToken = async (): Promise<string | null> => {
+    const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
+    if (error) return null;
+    const session = refreshedSession ?? (await supabase.auth.getSession()).data.session;
+    return session?.access_token ?? null;
+  };
+
   const handlePublish = async () => {
     const list = getEffectiveVideoList();
     if (list.length === 0) {
@@ -299,11 +306,13 @@ export default function NewPost() {
       toast({ title: "Selecione ao menos uma conta", variant: "destructive" });
       return;
     }
-    // Usar sessão refresada para evitar 401 por token expirado (getSession() pode devolver token antigo)
-    const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
-    const session = refreshedSession ?? (await supabase.auth.getSession()).data.session;
-    if (!session?.access_token) {
-      toast({ title: "Faça login novamente", variant: "destructive" });
+    let accessToken = await getValidAccessToken();
+    if (!accessToken) {
+      toast({
+        title: "Sessão inválida",
+        description: "Faça logout e login novamente, depois tente publicar.",
+        variant: "destructive",
+      });
       return;
     }
     setIsPublishing(true);
@@ -312,12 +321,30 @@ export default function NewPost() {
     for (const { url, name } of list) {
       for (const accountId of selectedAccounts) {
         try {
-          const result = await invokePublishReel(session.access_token, {
+          let result = await invokePublishReel(accessToken, {
             account_id: accountId,
             video_url: url,
             caption: caption || null,
           });
-          if (result.error) throw new Error(result.error);
+          if (result.error) {
+            const is401OrSession =
+              result.error.includes("401") ||
+              result.error.includes("Sessão inválida") ||
+              result.error.includes("expirada") ||
+              result.error.includes("Authorization");
+            if (is401OrSession) {
+              const newToken = await getValidAccessToken();
+              if (newToken) {
+                accessToken = newToken;
+                result = await invokePublishReel(accessToken, {
+                  account_id: accountId,
+                  video_url: url,
+                  caption: caption || null,
+                });
+              }
+            }
+            if (result.error) throw new Error(result.error);
+          }
           ok++;
         } catch (e) {
           fail++;
@@ -325,7 +352,7 @@ export default function NewPost() {
           const is401OrSession =
             msg.includes("401") || msg.includes("Sessão inválida") || msg.includes("expirada") || msg.includes("Authorization");
           const description = is401OrSession
-            ? "Sessão expirada. Faça login novamente e tente publicar de novo."
+            ? "Sessão expirada. Faça logout, login novamente e tente publicar de novo."
             : msg;
           toast({ title: `Falha: ${name}`, description, variant: "destructive" });
         }
