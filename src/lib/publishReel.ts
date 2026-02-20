@@ -45,7 +45,7 @@ export async function invokePublishReel(
 
   if (!res.ok) {
     const msg = body?.error ?? `Erro ${res.status}`;
-    return { data: null, error: msg };
+    return { data: null, error: res.status === 401 ? `401: ${msg}` : msg };
   }
 
   if (body?.error) {

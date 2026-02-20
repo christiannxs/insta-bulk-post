@@ -286,9 +286,9 @@ export default function NewPost() {
   };
 
   const getValidAccessToken = async (): Promise<string | null> => {
-    const { data: { session: refreshedSession }, error } = await supabase.auth.refreshSession();
+    const { error } = await supabase.auth.refreshSession();
     if (error) return null;
-    const session = refreshedSession ?? (await supabase.auth.getSession()).data.session;
+    const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token ?? null;
   };
 
@@ -356,7 +356,7 @@ export default function NewPost() {
           const description = isInstagramAccountExpired
             ? "Conta do Instagram inativa ou expirada. Vá em Contas e reconecte a conta."
             : isAppSessionExpired
-              ? "Sessão do app expirada. Faça logout, login novamente e tente publicar de novo."
+              ? "O servidor rejeitou o login. Feche esta aba, abra o app de novo, faça login e tente publicar. Se continuar, confira se a URL do Supabase no .env (ou no Vercel) é a mesma do projeto onde as Edge Functions estão."
               : msg;
           toast({ title: `Falha: ${name}`, description, variant: "destructive" });
         }
