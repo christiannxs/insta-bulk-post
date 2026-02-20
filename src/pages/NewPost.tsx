@@ -327,12 +327,11 @@ export default function NewPost() {
             caption: caption || null,
           });
           if (result.error) {
-            const is401OrSession =
+            const isAppSessionError =
               result.error.includes("401") ||
-              result.error.includes("Sessão inválida") ||
-              result.error.includes("expirada") ||
+              result.error.includes("Sessão inválida ou expirada") ||
               result.error.includes("Authorization");
-            if (is401OrSession) {
+            if (isAppSessionError) {
               const newToken = await getValidAccessToken();
               if (newToken) {
                 accessToken = newToken;
@@ -349,11 +348,16 @@ export default function NewPost() {
         } catch (e) {
           fail++;
           const msg = e instanceof Error ? e.message : "Erro";
-          const is401OrSession =
-            msg.includes("401") || msg.includes("Sessão inválida") || msg.includes("expirada") || msg.includes("Authorization");
-          const description = is401OrSession
-            ? "Sessão expirada. Faça logout, login novamente e tente publicar de novo."
-            : msg;
+          const isInstagramAccountExpired =
+            msg.includes("Conta inativa ou expirada") || msg.includes("Reconecte em Contas");
+          const isAppSessionExpired =
+            !isInstagramAccountExpired &&
+            (msg.includes("401") || msg.includes("Sessão inválida ou expirada") || msg.includes("Authorization"));
+          const description = isInstagramAccountExpired
+            ? "Conta do Instagram inativa ou expirada. Vá em Contas e reconecte a conta."
+            : isAppSessionExpired
+              ? "Sessão do app expirada. Faça logout, login novamente e tente publicar de novo."
+              : msg;
           toast({ title: `Falha: ${name}`, description, variant: "destructive" });
         }
       }
