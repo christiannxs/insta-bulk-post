@@ -45,14 +45,18 @@ export async function refreshInstagramProfile(accountId: string): Promise<{ user
       typeof body?.error === "string"
         ? body.error
         : (body?.error as { message?: string })?.message;
-    const message =
-      err?.trim() ||
-      res.statusText ||
-      (res.status === 404 ? "Função não encontrada. Faça deploy: npx supabase functions deploy refresh-instagram-profile" : null) ||
-      (res.status >= 500 ? "Falha no servidor. Tente de novo em instantes." : null) ||
-      "Erro ao atualizar perfil.";
-    if (import.meta.env.DEV) {
-      console.error("[refresh-instagram-profile]", res.status, res.statusText, body || rawText?.slice(0, 200));
+    const status = res.status;
+    const fallback =
+      status === 0
+        ? "Falha de rede ou CORS. Verifique se a URL do Supabase no .env está correta e se a função está publicada."
+        : status === 404
+          ? "Função não encontrada. No terminal: npx supabase functions deploy refresh-instagram-profile"
+          : status >= 500
+            ? "Falha no servidor. Tente de novo em instantes."
+            : `Erro ao atualizar perfil. (HTTP ${status})`;
+    const message = err?.trim() || res.statusText?.trim() || fallback;
+    if (import.meta.env.DEV || status === 0 || status === 404) {
+      console.error("[refresh-instagram-profile]", status, res.statusText, body || rawText?.slice(0, 300));
     }
     throw new Error(message);
   }
