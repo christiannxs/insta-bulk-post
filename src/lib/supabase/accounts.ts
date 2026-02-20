@@ -1,4 +1,5 @@
 import { supabase, getSupabaseEdgeFunctionConfig } from "@/integrations/supabase/client";
+import { getValidAccessToken } from "@/lib/supabase/session";
 import type { Tables } from "@/integrations/supabase/types";
 
 export type InstagramAccount = Tables<"instagram_accounts">;
@@ -19,17 +20,11 @@ export async function deleteInstagramAccount(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Atualiza nome e foto do perfil da conta no Instagram (chama a Graph API e atualiza o banco). */
-export async function refreshInstagramProfile(accountId: string): Promise<{ username: string; profile_picture_url: string | null }> {
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) throw new Error("Sessão inválida. Faça login novamente.");
-  if (!session?.access_token) throw new Error("Faça login para atualizar o perfil.");
-  // Garantir token válido (evita 401 por token expirado)
-  let token = session.access_token;
-  if (session.refresh_token) {
-    const { data: { session: freshSession }, error: refreshError } = await supabase.auth.refreshSession({ refresh_token: session.refresh_token });
-    if (!refreshError && freshSession?.access_token) token = freshSession.access_token;
-  }
+/** Chama a Edge Function refresh-instagram-profile com o token dado. Retorna a resposta ou lança. */
+async function callRefreshProfileEdgeFunction(
+  token: string,
+  accountId: string
+): Promise<{ username: string; profile_picture_url: string | null }> {
   const { url, anonKey } = getSupabaseEdgeFunctionConfig();
   const res = await fetch(`${url}/functions/v1/refresh-instagram-profile`, {
     method: "POST",
@@ -57,7 +52,7 @@ export async function refreshInstagramProfile(accountId: string): Promise<{ user
       status === 0
         ? "Falha de rede ou CORS. Verifique se a URL do Supabase no .env está correta e se a função está publicada."
         : status === 401
-          ? "Sessão expirada. Faça logout e login novamente."
+          ? "Sessão expirada. Faça login novamente e tente de novo."
           : status === 404
             ? "Função não encontrada. No terminal: npx supabase functions deploy refresh-instagram-profile"
             : status >= 500
@@ -70,4 +65,22 @@ export async function refreshInstagramProfile(accountId: string): Promise<{ user
     throw new Error(message);
   }
   return { username: body.username ?? "instagram", profile_picture_url: body.profile_picture_url ?? null };
+}
+
+/** Atualiza nome e foto do perfil da conta no Instagram (chama a Graph API e atualiza o banco). */
+export async function refreshInstagramProfile(accountId: string): Promise<{ username: string; profile_picture_url: string | null }> {
+  let token = await getValidAccessToken();
+  if (!token) throw new Error("Faça login para atualizar o perfil.");
+
+  try {
+    return await callRefreshProfileEdgeFunction(token, accountId);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    const is401OrSession = /401|Sessão|expirada|login/i.test(msg);
+    if (is401OrSession) {
+      const newToken = await getValidAccessToken();
+      if (newToken) return await callRefreshProfileEdgeFunction(newToken, accountId);
+    }
+    throw e;
+  }
 }

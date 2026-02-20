@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
 import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 import { supabase } from "@/integrations/supabase/client";
+import { getValidAccessToken } from "@/lib/supabase/session";
 import { invokePublishReel } from "@/lib/publishReel";
 import {
   isGoogleDriveConfigured,
@@ -285,12 +286,7 @@ export default function NewPost() {
     return [];
   };
 
-  const getValidAccessToken = async (): Promise<string | null> => {
-    const { data, error } = await supabase.auth.refreshSession();
-    if (error) return null;
-    // Usar o token da resposta do refresh evita usar sessão em cache antiga
-    return data?.session?.access_token ?? null;
-  };
+  const navigate = useNavigate();
 
   const handlePublish = async () => {
     const list = getEffectiveVideoList();
@@ -356,9 +352,12 @@ export default function NewPost() {
           const description = isInstagramAccountExpired
             ? "Conta do Instagram inativa ou expirada. Vá em Contas e reconecte a conta."
             : isAppSessionExpired
-              ? `O servidor rejeitou o login. ${msg ? msg + " — " : ""}Feche esta aba, abra o app de novo, faça login e tente publicar. Se continuar, confira se a URL do Supabase no .env (ou no Vercel) é a mesma do projeto onde as Edge Functions estão.`
+              ? "Sessão expirada. Faça login novamente para continuar. Se o erro persistir, confira no .env (ou Vercel) se a URL do Supabase é a mesma do projeto onde as Edge Functions estão."
               : msg;
           toast({ title: `Falha: ${name}`, description, variant: "destructive" });
+          if (isAppSessionExpired) {
+            setTimeout(() => navigate("/login", { replace: true }), 2500);
+          }
         }
       }
     }
