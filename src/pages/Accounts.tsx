@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { getInstagramConnectRedirectUri, getInstagramConnectUrl, isInstagramLogi
 export default function Accounts() {
   const { accounts, isLoading, removeAccount, isRemoving, refetch, refreshProfile, isRefreshingProfile } = useInstagramAccounts();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -74,11 +75,16 @@ export default function Accounts() {
       await refreshProfile(id);
       toast({ title: "Perfil atualizado", description: "Nome e foto da conta foram atualizados." });
     } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "";
+      const isSessionExpired = /401|Sessão expirada|Faça login novamente/i.test(msg);
       toast({
         title: "Erro ao atualizar perfil",
-        description: e instanceof Error ? e.message : "Reconecte a conta se o token tiver expirado.",
+        description: msg || "Reconecte a conta se o token tiver expirado.",
         variant: "destructive",
       });
+      if (isSessionExpired) {
+        setTimeout(() => navigate("/login", { replace: true }), 2500);
+      }
     }
   };
 

@@ -45,6 +45,11 @@ export async function invokePublishReel(
 
   if (!res.ok) {
     const msg = body?.error ?? `Erro ${res.status}`;
+    if (import.meta.env.DEV && res.status === 401) {
+      console.warn(
+        "[publish-reel] 401: a URL do Supabase no .env (e na Vercel) deve ser a do projeto onde esta Edge Function está publicada.",
+      );
+    }
     return { data: null, error: res.status === 401 ? `401: ${msg}` : msg };
   }
 

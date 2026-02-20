@@ -12,6 +12,16 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export async function getValidAccessToken(): Promise<string | null> {
   const { data, error } = await supabase.auth.refreshSession();
-  if (error) return null;
-  return data?.session?.access_token ?? null;
+  if (error) {
+    if (import.meta.env.DEV) {
+      console.warn("[session] refresh falhou:", error.message, "- Faça login novamente.");
+    }
+    await supabase.auth.signOut();
+    return null;
+  }
+  const token = data?.session?.access_token ?? null;
+  if (!token && import.meta.env.DEV) {
+    console.warn("[session] Sem token após refresh - usuário precisa fazer login.");
+  }
+  return token;
 }

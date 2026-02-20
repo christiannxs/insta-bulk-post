@@ -61,6 +61,11 @@ async function callRefreshProfileEdgeFunction(
     const message = err?.trim() || res.statusText?.trim() || fallback;
     if (import.meta.env.DEV || status === 0 || status === 404) {
       console.error("[refresh-instagram-profile]", status, res.statusText, body || rawText?.slice(0, 300));
+      if (status === 401) {
+        console.warn(
+          "[refresh-instagram-profile] 401: a URL do Supabase no .env (e na Vercel) deve ser a do projeto onde esta Edge Function está publicada.",
+        );
+      }
     }
     throw new Error(message);
   }

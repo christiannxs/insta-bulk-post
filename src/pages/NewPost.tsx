@@ -348,7 +348,10 @@ export default function NewPost() {
             msg.includes("Conta inativa ou expirada") || msg.includes("Reconecte em Contas");
           const isAppSessionExpired =
             !isInstagramAccountExpired &&
-            (msg.includes("401") || msg.includes("Sessão inválida ou expirada") || msg.includes("Authorization"));
+            (msg.includes("401") ||
+              msg.includes("Sessão inválida ou expirada") ||
+              msg.includes("Sessão expirada") ||
+              msg.includes("Authorization"));
           const description = isInstagramAccountExpired
             ? "Conta do Instagram inativa ou expirada. Vá em Contas e reconecte a conta."
             : isAppSessionExpired
