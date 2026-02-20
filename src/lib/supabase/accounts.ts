@@ -34,6 +34,9 @@ export async function refreshInstagramProfile(accountId: string): Promise<{ user
     body: JSON.stringify({ account_id: accountId }),
   });
   const body = (await res.json().catch(() => ({}))) as { error?: string; username?: string; profile_picture_url?: string | null };
-  if (!res.ok) throw new Error(body?.error ?? "Erro ao atualizar perfil.");
+  if (!res.ok) {
+    const message = body?.error ?? res.statusText ?? "Erro ao atualizar perfil.";
+    throw new Error(message);
+  }
   return { username: body.username ?? "instagram", profile_picture_url: body.profile_picture_url ?? null };
 }

@@ -83,14 +83,35 @@ Deno.serve(async (req) => {
     const meRes = await fetch(meUrl);
     let meData: IgMeResponse = await meRes.json();
 
-    if (meData.error?.message) {
-      meData = {};
+    if (!meRes.ok || meData.error?.message) {
+      const msg = meData.error?.message ?? "Resposta inválida do Instagram";
+      const isTokenError = /token|expired|invalid|permission/i.test(msg);
+      return new Response(
+        JSON.stringify({
+          error: isTokenError
+            ? "Token do Instagram expirado ou inválido. Clique em \"Reconectar\" na conta."
+            : msg,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
     if (!meData.username && igUserId) {
       const byIdUrl = `${INSTAGRAM_GRAPH}/${igUserId}?fields=username,profile_picture_url&access_token=${encodeURIComponent(accessToken)}`;
       const byIdRes = await fetch(byIdUrl);
       const byIdData: IgMeResponse = await byIdRes.json();
-      if (!byIdData.error && (byIdData.username || byIdData.profile_picture_url)) {
+      if (!byIdRes.ok || byIdData.error?.message) {
+        const msg = byIdData.error?.message ?? "Não foi possível buscar o perfil pelo ID";
+        const isTokenError = /token|expired|invalid|permission/i.test(msg);
+        return new Response(
+          JSON.stringify({
+            error: isTokenError
+              ? "Token do Instagram expirado ou inválido. Clique em \"Reconectar\" na conta."
+              : msg,
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (byIdData.username || byIdData.profile_picture_url) {
         meData.username = meData.username ?? byIdData.username ?? undefined;
         meData.profile_picture_url = meData.profile_picture_url ?? byIdData.profile_picture_url ?? undefined;
       }
