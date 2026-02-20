@@ -21,13 +21,20 @@ export async function deleteInstagramAccount(id: string): Promise<void> {
 
 /** Atualiza nome e foto do perfil da conta no Instagram (chama a Graph API e atualiza o banco). */
 export async function refreshInstagramProfile(accountId: string): Promise<{ username: string; profile_picture_url: string | null }> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error("Sessão inválida. Faça login novamente.");
   if (!session?.access_token) throw new Error("Faça login para atualizar o perfil.");
+  // Garantir token válido (evita 401 por token expirado)
+  let token = session.access_token;
+  if (session.refresh_token) {
+    const { data: { session: freshSession }, error: refreshError } = await supabase.auth.refreshSession({ refresh_token: session.refresh_token });
+    if (!refreshError && freshSession?.access_token) token = freshSession.access_token;
+  }
   const { url, anonKey } = getSupabaseEdgeFunctionConfig();
   const res = await fetch(`${url}/functions/v1/refresh-instagram-profile`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
       apikey: anonKey,
     },
@@ -49,11 +56,13 @@ export async function refreshInstagramProfile(accountId: string): Promise<{ user
     const fallback =
       status === 0
         ? "Falha de rede ou CORS. Verifique se a URL do Supabase no .env está correta e se a função está publicada."
-        : status === 404
-          ? "Função não encontrada. No terminal: npx supabase functions deploy refresh-instagram-profile"
-          : status >= 500
-            ? "Falha no servidor. Tente de novo em instantes."
-            : `Erro ao atualizar perfil. (HTTP ${status})`;
+        : status === 401
+          ? "Sessão expirada. Faça logout e login novamente."
+          : status === 404
+            ? "Função não encontrada. No terminal: npx supabase functions deploy refresh-instagram-profile"
+            : status >= 500
+              ? "Falha no servidor. Tente de novo em instantes."
+              : `Erro ao atualizar perfil. (HTTP ${status})`;
     const message = err?.trim() || res.statusText?.trim() || fallback;
     if (import.meta.env.DEV || status === 0 || status === 404) {
       console.error("[refresh-instagram-profile]", status, res.statusText, body || rawText?.slice(0, 300));
